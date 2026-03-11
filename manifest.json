@@ -1,0 +1,10 @@
+{
+  "id": "monitoring-plugin",
+  "name": "Monitoring Plugin",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Integrate Outlook mail and corporate LLM for automated incident notes",
+  "author": "Antygravity",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
