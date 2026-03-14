@@ -1,11 +1,18 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 import { EmailData } from '../outlook/OutlookService';
+import { MonitoringPluginSettings } from '../settings/SettingsTab';
 
 export class TemplateManager {
     app: App;
+    settings: MonitoringPluginSettings;
 
-    constructor(app: App) {
+    constructor(app: App, settings: MonitoringPluginSettings) {
         this.app = app;
+        this.settings = settings;
+    }
+
+    updateSettings(settings: MonitoringPluginSettings) {
+        this.settings = settings;
     }
 
     async getIncidentNoteByTopic(topic: string): Promise<TFile | null> {
@@ -24,7 +31,35 @@ export class TemplateManager {
         const vault = this.app.vault;
         const topic = email.conversationTopic || email.subject || 'Unknown';
         const safeTitle = topic.replace(/[\\/:"*?<>|]/g, '_').slice(0, 50);
-        const filename = `Incident-${safeTitle}.md`;
+        
+        let targetFolder = "";
+        let folderPath = this.settings.incidentsFolder?.trim();
+        
+        if (folderPath) {
+            folderPath = folderPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+            targetFolder = folderPath + "/";
+            
+            // Check if folder exists
+            const folderAbstract = vault.getAbstractFileByPath(folderPath);
+            if (!folderAbstract) {
+                try {
+                    // Try to create the root level folder at least
+                    let currentPath = "";
+                    const parts = folderPath.split('/');
+                    for(const part of parts) {
+                        currentPath = currentPath === "" ? part : `${currentPath}/${part}`;
+                        let folderExists = vault.getAbstractFileByPath(currentPath);
+                        if(!folderExists) {
+                            await vault.createFolder(currentPath);
+                        }
+                    }
+                } catch(e) {
+                    console.error("Failed to create folder", e);
+                }
+            }
+        }
+        
+        const filename = `${targetFolder}Incident-${safeTitle}.md`;
 
         const fileContent = `---
 date: ${email.receivedDateTime}
@@ -33,6 +68,7 @@ subject: "${email.subject}"
 conversation_topic: "${email.conversationTopic}"
 status: "Pending"
 tags: [incident]
+cssclasses: [hide-properties]
 ---
 
 # ${email.conversationTopic}
@@ -81,6 +117,91 @@ ${email.bodyPreview}\n---`;
         content += newLogEntry;
 
         await this.app.vault.modify(file, content);
+    }
+
+    async createTaskNote(name: string, initialTags: string[] = []): Promise<TFile> {
+        const vault = this.app.vault;
+        const folder = "tasks";
+        await this.ensureFolder(folder);
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `${folder}/Task-${name.replace(/[\\/:"*?<>|]/g, '_')}.md`;
+        
+        // Merge with default 'task' tag
+        const tags = [...new Set(['task', ...initialTags])];
+        const tagsStr = tags.length > 1 ? `[${tags.join(', ')}]` : tags[0];
+
+        const content = `---
+type: task
+status: "To Do"
+priority: 3
+created: ${dateStr}
+deadline: ${dateStr} 10:00
+linked_project: 
+tags: ${tagsStr}
+cssclasses: [hide-properties]
+---
+
+# ${name}
+
+\`\`\`monitoring-duration
+\`\`\`
+
+## 📋 Описание
+Запишите здесь детали задачи...
+
+## ✅ Чек-лист
+- [ ] 
+
+## 📝 Заметки
+...
+`;
+        return vault.create(fileName, content);
+    }
+
+    async createProjectNote(name: string): Promise<TFile> {
+        const vault = this.app.vault;
+        const folder = "projects";
+        await this.ensureFolder(folder);
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `${folder}/Project-${name.replace(/[\\/:"*?<>|]/g, '_')}.md`;
+        
+        const content = `---
+type: project
+status: Active
+started: ${dateStr}
+target_date: 
+owner: "${this.app.vault.getName()}"
+tags: [project]
+cssclasses: [hide-properties]
+---
+
+# ${name}
+
+## 🎯 Цели проекта
+1. 
+
+## 🏗 Этапы (Milestones)
+- [ ] Инициализация
+- [ ] Разработка
+- [ ] Тестирование
+- [ ] Запуск
+
+## 🔗 Связанные задачи
+...
+
+## 📚 Ресурсы
+- [ ] Ссылка на документацию
+`;
+        return vault.create(fileName, content);
+    }
+
+    async ensureFolder(path: string) {
+        const folder = this.app.vault.getAbstractFileByPath(path);
+        if (!folder) {
+            await this.app.vault.createFolder(path);
+        }
     }
 
     async readNoteContent(file: TFile): Promise<string> {

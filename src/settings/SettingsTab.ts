@@ -11,6 +11,9 @@ export interface MonitoringPluginSettings {
     dashboardNoteName: string;
     useMockData: boolean;
     useMockLLM: boolean;
+    chatSystemPrompt: string;
+    chatTemperature: number;
+    incidentsFolder: string;
 }
 
 export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
@@ -22,7 +25,10 @@ export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
     scannedEmailIds: [],
     dashboardNoteName: 'Dashboard.md',
     useMockData: false,
-    useMockLLM: false
+    useMockLLM: false,
+    chatSystemPrompt: "Ты полезный корпоративный ИИ-ассистент. Отвечай всегда на русском языке, помогай с анализом инцидентов и написанием документации.",
+    chatTemperature: 0.7,
+    incidentsFolder: "mail"
 };
 
 export class MonitoringSettingTab extends PluginSettingTab {
@@ -75,6 +81,31 @@ export class MonitoringSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        containerEl.createEl('h3', { text: 'AI Chat Settings' });
+
+        new Setting(containerEl)
+            .setName('System Prompt')
+            .setDesc('System prompt given to the AI for chat conversations.')
+            .addTextArea(text => text
+                .setPlaceholder('Enter system prompt...')
+                .setValue(this.plugin.settings.chatSystemPrompt)
+                .onChange(async (value) => {
+                    this.plugin.settings.chatSystemPrompt = value;
+                    await this.plugin.saveSettings();
+                }));
+        
+        new Setting(containerEl)
+            .setName('Temperature')
+            .setDesc('Variability of AI responses (0.0 to 1.0)')
+            .addSlider(slider => slider
+                .setLimits(0, 1, 0.1)
+                .setValue(this.plugin.settings.chatTemperature)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.chatTemperature = value;
+                    await this.plugin.saveSettings();
+                }));
+
         containerEl.createEl('h3', { text: 'Outlook Integration' });
 
         new Setting(containerEl)
@@ -108,6 +139,19 @@ export class MonitoringSettingTab extends PluginSettingTab {
                     this.plugin.settings.scannedEmailIds = [];
                     await this.plugin.saveSettings();
                     new Notice('Scanned emails cache cleared!');
+                }));
+
+        containerEl.createEl('h3', { text: 'Notes settings' });
+
+        new Setting(containerEl)
+            .setName('Incidents Folder')
+            .setDesc('Folder where new incident notes will be created. Leave empty to use vault root.')
+            .addText(text => text
+                .setPlaceholder('mail')
+                .setValue(this.plugin.settings.incidentsFolder)
+                .onChange(async (value) => {
+                    this.plugin.settings.incidentsFolder = value;
+                    await this.plugin.saveSettings();
                 }));
 
         containerEl.createEl('h3', { text: 'Development / Testing' });
