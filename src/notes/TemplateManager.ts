@@ -119,7 +119,7 @@ ${email.bodyPreview}\n---`;
         await this.app.vault.modify(file, content);
     }
 
-    async createTaskNote(name: string, initialTags: string[] = []): Promise<TFile> {
+    async createTaskNote(name: string, initialTags: string[] = [], linkedProject: string = ""): Promise<TFile> {
         const vault = this.app.vault;
         const folder = "tasks";
         await this.ensureFolder(folder);
@@ -137,7 +137,7 @@ status: "To Do"
 priority: 3
 created: ${dateStr}
 deadline: ${dateStr} 10:00
-linked_project: 
+linked_project: "${linkedProject}"
 tags: ${tagsStr}
 cssclasses: [hide-properties]
 ---
@@ -173,11 +173,15 @@ status: Active
 started: ${dateStr}
 target_date: 
 owner: "${this.app.vault.getName()}"
+goal: ""
 tags: [project]
 cssclasses: [hide-properties]
 ---
 
 # ${name}
+
+\`\`\`monitoring-duration
+\`\`\`
 
 ## 🎯 Цели проекта
 1. 
@@ -188,11 +192,6 @@ cssclasses: [hide-properties]
 - [ ] Тестирование
 - [ ] Запуск
 
-## 🔗 Связанные задачи
-...
-
-## 📚 Ресурсы
-- [ ] Ссылка на документацию
 `;
         return vault.create(fileName, content);
     }
@@ -206,5 +205,40 @@ cssclasses: [hide-properties]
 
     async readNoteContent(file: TFile): Promise<string> {
         return await this.app.vault.read(file);
+    }
+
+    async updateSubtaskTable(parentFile: TFile, taskFile: TFile): Promise<void> {
+        let content = await this.app.vault.read(parentFile);
+        const cache = this.app.metadataCache.getFileCache(taskFile);
+        
+        const status = cache?.frontmatter?.['status'] || 'To Do';
+        const deadline = cache?.frontmatter?.['deadline'] || 'Не задано';
+        // For description, we could try to extract it, but for a new task it's empty
+        const description = "Новая подзадача"; 
+
+        const tableHeader = "## 📋 Список подзадач";
+        const tableRow = `| [[${taskFile.basename}]] | ${description} | ${status} | ${deadline} |\n`;
+        
+        if (content.includes(tableHeader)) {
+            // Find the table and append to it
+            const lines = content.split('\n');
+            const headerIndex = lines.findIndex(l => l.includes(tableHeader));
+            
+            // Look for the end of the table or just insert after header/separator
+            lines.splice(headerIndex + 3, 0, tableRow);
+            content = lines.join('\n');
+        } else {
+            // Create new table at a logical place (before Log entries or at the end)
+            const logHeader = "## Лог сообщений";
+            const tableFull = `\n${tableHeader}\n| Задача | Описание | Статус | Срок |\n| --- | --- | --- | --- |\n${tableRow}\n`;
+            
+            if (content.includes(logHeader)) {
+                content = content.replace(logHeader, `${tableFull}${logHeader}`);
+            } else {
+                content += tableFull;
+            }
+        }
+
+        await this.app.vault.modify(parentFile, content);
     }
 }

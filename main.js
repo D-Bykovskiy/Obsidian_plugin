@@ -444,7 +444,7 @@ ${email.bodyPreview}
     content += newLogEntry;
     await this.app.vault.modify(file, content);
   }
-  async createTaskNote(name, initialTags = []) {
+  async createTaskNote(name, initialTags = [], linkedProject = "") {
     const vault = this.app.vault;
     const folder = "tasks";
     await this.ensureFolder(folder);
@@ -458,7 +458,7 @@ status: "To Do"
 priority: 3
 created: ${dateStr}
 deadline: ${dateStr} 10:00
-linked_project: 
+linked_project: "${linkedProject}"
 tags: ${tagsStr}
 cssclasses: [hide-properties]
 ---
@@ -491,11 +491,15 @@ status: Active
 started: ${dateStr}
 target_date: 
 owner: "${this.app.vault.getName()}"
+goal: ""
 tags: [project]
 cssclasses: [hide-properties]
 ---
 
 # ${name}
+
+\`\`\`monitoring-duration
+\`\`\`
 
 ## \u{1F3AF} \u0426\u0435\u043B\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430
 1. 
@@ -506,11 +510,6 @@ cssclasses: [hide-properties]
 - [ ] \u0422\u0435\u0441\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435
 - [ ] \u0417\u0430\u043F\u0443\u0441\u043A
 
-## \u{1F517} \u0421\u0432\u044F\u0437\u0430\u043D\u043D\u044B\u0435 \u0437\u0430\u0434\u0430\u0447\u0438
-...
-
-## \u{1F4DA} \u0420\u0435\u0441\u0443\u0440\u0441\u044B
-- [ ] \u0421\u0441\u044B\u043B\u043A\u0430 \u043D\u0430 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0438\u044E
 `;
     return vault.create(fileName, content);
   }
@@ -522,6 +521,37 @@ cssclasses: [hide-properties]
   }
   async readNoteContent(file) {
     return await this.app.vault.read(file);
+  }
+  async updateSubtaskTable(parentFile, taskFile) {
+    var _a, _b;
+    let content = await this.app.vault.read(parentFile);
+    const cache = this.app.metadataCache.getFileCache(taskFile);
+    const status = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["status"]) || "To Do";
+    const deadline = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["deadline"]) || "\u041D\u0435 \u0437\u0430\u0434\u0430\u043D\u043E";
+    const description = "\u041D\u043E\u0432\u0430\u044F \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447\u0430";
+    const tableHeader = "## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447";
+    const tableRow = `| [[${taskFile.basename}]] | ${description} | ${status} | ${deadline} |
+`;
+    if (content.includes(tableHeader)) {
+      const lines = content.split("\n");
+      const headerIndex = lines.findIndex((l) => l.includes(tableHeader));
+      lines.splice(headerIndex + 3, 0, tableRow);
+      content = lines.join("\n");
+    } else {
+      const logHeader = "## \u041B\u043E\u0433 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439";
+      const tableFull = `
+${tableHeader}
+| \u0417\u0430\u0434\u0430\u0447\u0430 | \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A |
+| --- | --- | --- | --- |
+${tableRow}
+`;
+      if (content.includes(logHeader)) {
+        content = content.replace(logHeader, `${tableFull}${logHeader}`);
+      } else {
+        content += tableFull;
+      }
+    }
+    await this.app.vault.modify(parentFile, content);
   }
 };
 
@@ -539,7 +569,8 @@ var DEFAULT_SETTINGS = {
   useMockLLM: false,
   chatSystemPrompt: "\u0422\u044B \u043F\u043E\u043B\u0435\u0437\u043D\u044B\u0439 \u043A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442. \u041E\u0442\u0432\u0435\u0447\u0430\u0439 \u0432\u0441\u0435\u0433\u0434\u0430 \u043D\u0430 \u0440\u0443\u0441\u0441\u043A\u043E\u043C \u044F\u0437\u044B\u043A\u0435, \u043F\u043E\u043C\u043E\u0433\u0430\u0439 \u0441 \u0430\u043D\u0430\u043B\u0438\u0437\u043E\u043C \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0438 \u043D\u0430\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u043C \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0438\u0438.",
   chatTemperature: 0.7,
-  incidentsFolder: "mail"
+  incidentsFolder: "mail",
+  savedFilters: []
 };
 var MonitoringSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
@@ -682,6 +713,12 @@ var ChatView = class extends import_obsidian3.ItemView {
     }
     this.messages.forEach((msg) => {
       const msgEl = this.messageContainer.createDiv(`chat-message ${msg.role}`);
+      const copyBtn = msgEl.createDiv("chat-message-copy-btn");
+      (0, import_obsidian3.setIcon)(copyBtn, "copy");
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(msg.content);
+        new import_obsidian3.Notice("\u0422\u0435\u043A\u0441\u0442 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D \u0432 \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430");
+      };
       const contentEl = msgEl.createDiv("chat-message-content");
       if (msg.role === "assistant") {
         import_obsidian3.MarkdownRenderer.renderMarkdown(msg.content, contentEl, "", this);
@@ -702,9 +739,13 @@ var ChatView = class extends import_obsidian3.ItemView {
 var import_obsidian4 = require("obsidian");
 var MAIN_PAGE_VIEW_TYPE = "monitoring-main-page-view";
 var MainPageView = class extends import_obsidian4.ItemView {
+  // ID of the currently active saved filter
   constructor(leaf, plugin) {
     super(leaf);
     this.activeTab = "dashboard";
+    this.calendarWeekOffset = 0;
+    this.currentFilterId = null;
+    this.isRefreshing = false;
     this.plugin = plugin;
   }
   getViewType() {
@@ -720,54 +761,63 @@ var MainPageView = class extends import_obsidian4.ItemView {
     await this.refreshContent();
   }
   async refreshContent() {
-    const container = this.containerEl.children[1];
-    container.empty();
-    container.addClass("monitoring-main-page");
-    const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F", cls: "main-page-header" });
-    const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
-    const refreshBtn = btnGroup.createEl("button", {
-      cls: "monitoring-refresh-btn",
-      text: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0434\u0430\u043D\u043D\u044B\u0435"
-    });
-    refreshBtn.onclick = () => this.refreshContent();
-    const reportBtn = btnGroup.createEl("button", {
-      cls: "monitoring-report-btn",
-      text: "\u0421\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0435\u0442"
-    });
-    reportBtn.onclick = () => this.generateWeeklyReport();
-    const addTaskBtn = btnGroup.createEl("button", {
-      cls: "monitoring-glass-btn monitoring-add-task",
-      text: "+ \u0417\u0430\u0434\u0430\u0447\u0443"
-    });
-    addTaskBtn.onclick = () => {
-      new NamingModal(this.app, "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443", async (name) => {
-        const file = await this.plugin.templateManager.createTaskNote(name);
-        await this.app.workspace.getLeaf(false).openFile(file);
-        new import_obsidian4.Notice(`\u0417\u0430\u0434\u0430\u0447\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!`);
-        this.refreshContent();
-      }).open();
-    };
-    const addProjectBtn = btnGroup.createEl("button", {
-      cls: "monitoring-glass-btn monitoring-add-project",
-      text: "+ \u041F\u0440\u043E\u0435\u043A\u0442"
-    });
-    addProjectBtn.onclick = () => {
-      new NamingModal(this.app, "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442", async (name) => {
-        const file = await this.plugin.templateManager.createProjectNote(name);
-        await this.app.workspace.getLeaf(false).openFile(file);
-        new import_obsidian4.Notice(`\u041F\u0440\u043E\u0435\u043A\u0442 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D!`);
-        this.refreshContent();
-      }).open();
-    };
-    this.renderTabs(container);
-    const incidents = await this.getIncidentsFromVault();
-    if (this.activeTab === "dashboard") {
-      this.renderDashboard(container, incidents);
-    } else if (this.activeTab === "kanban") {
-      this.renderKanban(container, incidents);
-    } else if (this.activeTab === "calendar") {
-      this.renderCalendar(container, incidents);
+    if (this.isRefreshing)
+      return;
+    if (!this.containerEl.parentElement)
+      return;
+    this.isRefreshing = true;
+    try {
+      const container = this.containerEl.children[1];
+      container.empty();
+      container.addClass("monitoring-main-page");
+      const headerContainer = container.createDiv({ cls: "main-page-header-container" });
+      headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F", cls: "main-page-header" });
+      const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
+      const refreshBtn = btnGroup.createEl("button", {
+        cls: "monitoring-refresh-btn",
+        text: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0434\u0430\u043D\u043D\u044B\u0435"
+      });
+      refreshBtn.onclick = () => this.refreshContent();
+      const reportBtn = btnGroup.createEl("button", {
+        cls: "monitoring-report-btn",
+        text: "\u0421\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0435\u0442"
+      });
+      reportBtn.onclick = () => this.generateWeeklyReport();
+      const addTaskBtn = btnGroup.createEl("button", {
+        cls: "monitoring-glass-btn monitoring-add-task",
+        text: "+ \u0417\u0430\u0434\u0430\u0447\u0443"
+      });
+      addTaskBtn.onclick = () => {
+        new NamingModal(this.app, "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443", async (name) => {
+          const file = await this.plugin.templateManager.createTaskNote(name);
+          await this.app.workspace.getLeaf(false).openFile(file);
+          new import_obsidian4.Notice(`\u0417\u0430\u0434\u0430\u0447\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!`);
+          this.refreshContent();
+        }).open();
+      };
+      const addProjectBtn = btnGroup.createEl("button", {
+        cls: "monitoring-glass-btn monitoring-add-project",
+        text: "+ \u041F\u0440\u043E\u0435\u043A\u0442"
+      });
+      addProjectBtn.onclick = () => {
+        new NamingModal(this.app, "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442", async (name) => {
+          const file = await this.plugin.templateManager.createProjectNote(name);
+          await this.app.workspace.getLeaf(false).openFile(file);
+          new import_obsidian4.Notice(`\u041F\u0440\u043E\u0435\u043A\u0442 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D!`);
+          this.refreshContent();
+        }).open();
+      };
+      this.renderTabs(container);
+      const { incidents, tasks, projects } = await this.getDataFromVault();
+      if (this.activeTab === "dashboard") {
+        this.renderDashboard(container, incidents, tasks, projects);
+      } else if (this.activeTab === "kanban") {
+        this.renderKanban(container, tasks, projects);
+      } else if (this.activeTab === "calendar") {
+        this.renderCalendar(container, tasks, projects);
+      }
+    } finally {
+      this.isRefreshing = false;
     }
   }
   renderTabs(container) {
@@ -788,114 +838,413 @@ var MainPageView = class extends import_obsidian4.ItemView {
       };
     });
   }
-  async renderDashboard(container, incidents) {
-    this.renderStats(container, incidents);
-    container.createEl("h3", { text: "\u041E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0435 \u0442\u0435\u043C\u044B" });
+  async renderDashboard(container, incidents, tasks, projects) {
+    this.renderHeroSection(container, incidents, tasks, projects);
+    container.createEl("h3", { text: "\u041F\u0440\u043E\u0435\u043A\u0442\u044B" });
+    this.renderProjectsTable(container, projects);
+    const taskHeaderContainer = container.createDiv({ cls: "section-header-with-btn" });
+    taskHeaderContainer.createEl("h3", { text: "\u0417\u0430\u0434\u0430\u0447\u0438" });
+    const filterBtn = taskHeaderContainer.createEl("button", {
+      cls: "monitoring-glass-btn filter-edit-btn",
+      text: "\u2699\uFE0F \u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u044B"
+    });
+    filterBtn.onclick = () => {
+      new FilterModal(this.app, projects, this.plugin.settings.savedFilters, async (newFilters) => {
+        this.plugin.settings.savedFilters = newFilters;
+        await this.plugin.saveSettings();
+        this.currentFilterId = null;
+        this.refreshContent();
+      }).open();
+    };
+    this.renderFilterTabs(container);
+    this.renderTasksTable(container, tasks);
+    container.createEl("h3", { text: "\u041F\u043E\u0447\u0442\u0430" });
     await this.renderTrackedSubjects(container);
-    container.createEl("hr");
-    container.createEl("h3", { text: "\u041F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u044B (\u0438\u0437 \u043F\u043E\u0447\u0442\u044B)" });
     this.renderIncidentsTable(container, incidents);
   }
-  renderKanban(container, incidents) {
-    const kanbanContainer = container.createDiv({ cls: "monitoring-kanban-board" });
-    const statuses = [
-      { id: "pending", label: "\u041E\u0436\u0438\u0434\u0430\u044E\u0442", color: "orange" },
-      { id: "active", label: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", color: "blue" },
-      { id: "done", label: "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E", color: "green" }
-    ];
-    statuses.forEach((status) => {
-      const column = kanbanContainer.createDiv({ cls: `kanban-column ${status.color}` });
-      column.createEl("h4", { text: status.label });
-      const cardsContainer = column.createDiv({ cls: "kanban-cards" });
-      const filtered = incidents.filter((i) => {
-        const s = i.status.toLowerCase();
-        if (status.id === "pending")
-          return s.includes("pending") || s.includes("\u043E\u0436\u0438\u0434\u0430\u0435\u0442");
-        if (status.id === "active")
-          return s.includes("active") || s.includes("\u0432 \u0440\u0430\u0431\u043E\u0442\u0435") || s.includes("\u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435");
-        if (status.id === "done")
-          return s.includes("done") || s.includes("\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D") || s.includes("\u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043E");
-        return false;
+  renderKanban(container, tasks, projects) {
+    const kanbanWrapper = container.createDiv({ cls: "monitoring-kanban-wrapper" });
+    const renderBoard = (title, items, type) => {
+      container.createEl("h3", { text: title, attr: { style: "margin-top: 20px;" } });
+      const board = container.createDiv({ cls: "monitoring-kanban-board" });
+      const statuses = [
+        { id: "todo", label: "\u041E\u0436\u0438\u0434\u0430\u043D\u0438\u0435", color: "orange", match: ["todo", "pending", "\u043E\u0436\u0438\u0434\u0430", "\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E", "to do"] },
+        { id: "active", label: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", color: "blue", match: ["active", "in progress", "\u0432 \u0440\u0430\u0431\u043E\u0442\u0435", "\u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435"] },
+        { id: "done", label: "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E", color: "green", match: ["done", "completed", "\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D", "\u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043E"] }
+      ];
+      statuses.forEach((status) => {
+        const column = board.createDiv({ cls: `kanban-column ${status.color}` });
+        column.createEl("h4", { text: status.label });
+        const cardsContainer = column.createDiv({ cls: "kanban-cards" });
+        column.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          column.addClass("is-drag-over");
+        });
+        column.addEventListener("dragleave", () => {
+          column.removeClass("is-drag-over");
+        });
+        column.addEventListener("drop", async (e) => {
+          var _a;
+          e.preventDefault();
+          column.removeClass("is-drag-over");
+          try {
+            const rawData = (_a = e.dataTransfer) == null ? void 0 : _a.getData("text/plain");
+            if (!rawData)
+              return;
+            const data = JSON.parse(rawData);
+            if (data.path && data.type === type) {
+              await this.updateItemStatus(data.path, status.label);
+              await new Promise((r) => setTimeout(r, 400));
+              this.refreshContent();
+            }
+          } catch (err) {
+            console.error("Drop error:", err);
+          }
+        });
+        const filtered = items.filter((item) => {
+          const s = (item.status || "").toLowerCase().trim();
+          const labelLower = status.label.toLowerCase();
+          return status.match.some((m) => s.includes(m)) || s === labelLower || s.replace(/\s+/g, "") === status.id;
+        });
+        if (filtered.length === 0) {
+          cardsContainer.createDiv({ text: "\u041F\u0443\u0441\u0442\u043E", cls: "kanban-empty" });
+        }
+        filtered.forEach((item) => {
+          const card = cardsContainer.createDiv({
+            cls: `kanban-card ${type === "task" ? "task-card priority-" + item.priority : "project-card"}`
+          });
+          if (type === "project" && item.priority) {
+            card.addClass(`priority-${item.priority}`);
+          }
+          card.setAttribute("draggable", "true");
+          card.createDiv({ cls: "card-title", text: type === "project" ? item.name : item.name });
+          if (type === "task") {
+            card.createDiv({ cls: "card-meta", text: `\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442: ${item.priority} | ${item.deadline || "\u0411\u0435\u0437 \u0441\u0440\u043E\u043A\u0430"}` });
+          } else {
+            card.createDiv({ cls: "card-meta", text: item.goal || "\u0426\u0435\u043B\u044C \u043D\u0435 \u0437\u0430\u0434\u0430\u043D\u0430" });
+          }
+          card.addEventListener("dragstart", (e) => {
+            var _a;
+            (_a = e.dataTransfer) == null ? void 0 : _a.setData("text/plain", JSON.stringify({ path: item.path, type }));
+            card.addClass("is-dragging");
+          });
+          card.addEventListener("dragend", () => {
+            card.removeClass("is-dragging");
+          });
+          card.onclick = () => {
+            this.app.workspace.getLeaf(false).openFile(this.app.vault.getAbstractFileByPath(item.path));
+          };
+        });
       });
-      if (filtered.length === 0) {
-        cardsContainer.createDiv({ text: "\u041F\u0443\u0441\u0442\u043E", cls: "kanban-empty" });
-      }
-      filtered.forEach((inc) => {
-        const card = cardsContainer.createDiv({ cls: "kanban-card" });
-        card.createDiv({ cls: "card-title", text: inc.name });
-        card.createDiv({ cls: "card-meta", text: `${new Date(inc.date).toLocaleDateString()} | ${inc.sender}` });
-        card.onclick = () => {
-          this.app.workspace.getLeaf(false).openFile(this.app.vault.getAbstractFileByPath(inc.path));
-        };
-      });
-    });
+    };
+    renderBoard("\u0414\u043E\u0441\u043A\u0430 \u041F\u0440\u043E\u0435\u043A\u0442\u043E\u0432", projects, "project");
+    renderBoard("\u0414\u043E\u0441\u043A\u0430 \u0417\u0430\u0434\u0430\u0447", tasks, "task");
   }
-  renderCalendar(container, incidents) {
+  async updateItemStatus(path2, newStatus) {
+    const file = this.app.vault.getAbstractFileByPath(path2);
+    if (file instanceof import_obsidian4.TFile) {
+      await this.app.fileManager.processFrontMatter(file, (fm) => {
+        fm["status"] = newStatus;
+      });
+    }
+  }
+  renderCalendar(container, tasks, projects) {
     const calendarWrapper = container.createDiv({ cls: "monitoring-calendar-wrapper" });
-    const dateGroups = {};
-    incidents.forEach((inc) => {
-      const dateKey = new Date(inc.date).toISOString().split("T")[0];
-      if (!dateGroups[dateKey])
-        dateGroups[dateKey] = [];
-      dateGroups[dateKey].push(inc);
+    const navHeader = calendarWrapper.createDiv({ cls: "calendar-week-nav" });
+    const prevBtn = navHeader.createEl("button", { text: "\u2190 \u041F\u0440\u0435\u0434. \u043D\u0435\u0434\u0435\u043B\u044F", cls: "monitoring-refresh-btn" });
+    prevBtn.onclick = () => {
+      this.calendarWeekOffset--;
+      this.refreshContent();
+    };
+    const todayBtn = navHeader.createEl("button", { text: "\u0421\u0435\u0433\u043E\u0434\u043D\u044F", cls: "monitoring-glass-btn" });
+    todayBtn.onclick = () => {
+      this.calendarWeekOffset = 0;
+      this.refreshContent();
+    };
+    const nextBtn = navHeader.createEl("button", { text: "\u0421\u043B\u0435\u0434. \u043D\u0435\u0434\u0435\u043B\u044F \u2192", cls: "monitoring-refresh-btn" });
+    nextBtn.onclick = () => {
+      this.calendarWeekOffset++;
+      this.refreshContent();
+    };
+    const todayAt = new Date();
+    const startOfWeek = new Date(todayAt);
+    const dayOfWeek = todayAt.getDay();
+    const diff = todayAt.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) + this.calendarWeekOffset * 7;
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const currentWeekLabel = navHeader.createSpan({
+      cls: "week-label",
+      text: `\u041D\u0435\u0434\u0435\u043B\u044F: ${startOfWeek.toLocaleDateString()} - ${new Date(new Date(startOfWeek).setDate(startOfWeek.getDate() + 6)).toLocaleDateString()}`
     });
-    const sortedDates = Object.keys(dateGroups).sort((a, b) => b.localeCompare(a));
-    sortedDates.forEach((date) => {
-      const group = calendarWrapper.createDiv({ cls: "calendar-day-group" });
-      group.createEl("h4", { text: new Date(date).toLocaleDateString("ru-RU", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) });
-      const items = group.createDiv({ cls: "calendar-items" });
-      dateGroups[date].forEach((inc) => {
-        const item = items.createDiv({ cls: "calendar-event-item" });
-        const timeStr = new Date(inc.date).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-        item.createSpan({ cls: "event-time", text: timeStr });
-        const link = item.createEl("a", { cls: "event-link", text: inc.name });
-        link.onclick = () => {
-          this.app.workspace.getLeaf(false).openFile(this.app.vault.getAbstractFileByPath(inc.path));
+    const daysHeader = calendarWrapper.createDiv({ cls: "calendar-linear-header" });
+    const weekDays = ["\u041F\u043D", "\u0412\u0442", "\u0421\u0440", "\u0427\u0442", "\u041F\u0442", "\u0421\u0431", "\u0412\u0441"];
+    const datesInWeek = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      datesInWeek.push(d);
+      const dayHead = daysHeader.createDiv({ cls: "calendar-linear-day-head" });
+      dayHead.createDiv({ cls: "day-name", text: weekDays[i] });
+      dayHead.createDiv({ cls: "day-num", text: d.getDate().toString() });
+      if (d.toDateString() === todayAt.toDateString())
+        dayHead.addClass("is-today");
+    }
+    const renderTimeline = (title, items, type) => {
+      calendarWrapper.createEl("h3", { text: title, attr: { style: "margin-top: 30px;" } });
+      const timeline = calendarWrapper.createDiv({ cls: "calendar-linear-timeline" });
+      const grid = timeline.createDiv({ cls: "timeline-grid" });
+      for (let i = 0; i < 7; i++)
+        grid.createDiv({ cls: "timeline-line" });
+      const entriesContainer = timeline.createDiv({ cls: "timeline-entries" });
+      items.forEach((item) => {
+        let start, end;
+        if (type === "task") {
+          const deadlineStr = item.deadline || "";
+          if (deadlineStr.includes(" to ")) {
+            const parts = deadlineStr.split(" to ");
+            start = new Date(parts[0].trim());
+            end = new Date(parts[1].split(" ")[0].trim());
+          } else if (deadlineStr) {
+            start = new Date(deadlineStr.split(" ")[0].trim());
+            end = new Date(start);
+          } else {
+            return;
+          }
+        } else {
+          const startStr = item.started;
+          if (!startStr)
+            return;
+          start = new Date(startStr);
+          const endStr = item.target_date || item.deadline;
+          end = endStr ? new Date(endStr.split(" ")[0].trim()) : new Date(start);
+        }
+        const weekEnd = new Date(datesInWeek[6]);
+        weekEnd.setHours(23, 59, 59, 999);
+        if (end < startOfWeek || start > weekEnd)
+          return;
+        const visibleStart = start < startOfWeek ? startOfWeek : start;
+        const visibleEnd = end > weekEnd ? weekEnd : end;
+        const normStartAt = new Date(visibleStart);
+        normStartAt.setHours(0, 0, 0, 0);
+        const normEndAt = new Date(visibleEnd);
+        normEndAt.setHours(0, 0, 0, 0);
+        const normWeekStart = new Date(startOfWeek);
+        normWeekStart.setHours(0, 0, 0, 0);
+        const startCol = Math.max(0, Math.floor((normStartAt.getTime() - normWeekStart.getTime()) / (1e3 * 60 * 60 * 24)));
+        const duration = Math.ceil((normEndAt.getTime() - normStartAt.getTime()) / (1e3 * 60 * 60 * 24)) + 1;
+        const span = Math.min(7 - startCol, duration);
+        const entry = entriesContainer.createDiv({
+          cls: `timeline-entry ${type}-entry ${this.getStatusClass(item.status)} ${type === "task" ? "priority-" + item.priority : ""}`,
+          attr: {
+            style: `grid-column: ${startCol + 1} / span ${span}`,
+            title: type === "project" ? `\u041F\u0440\u043E\u0435\u043A\u0442: ${item.name}
+\u0426\u0435\u043B\u044C: ${item.goal || "\u043D\u0435 \u0437\u0430\u0434\u0430\u043D\u0430"}
+\u0421\u0442\u0430\u0442\u0443\u0441: ${item.status}
+\u041F\u0435\u0440\u0438\u043E\u0434: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}` : `\u0417\u0430\u0434\u0430\u0447\u0430: ${item.name}
+\u0421\u0440\u043E\u043A: ${item.deadline || "\u043D\u0435 \u0443\u043A\u0430\u0437\u0430\u043D"}
+\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442: ${item.priority}
+\u0421\u0442\u0430\u0442\u0443\u0441: ${item.status}`
+          }
+        });
+        const label = entry.createDiv({ cls: "entry-label" });
+        label.createSpan({ text: item.name });
+        if (duration > 1) {
+          entry.createDiv({ cls: "entry-period", text: `${duration}\u0434` });
+        }
+        entry.onclick = () => {
+          this.app.workspace.getLeaf(false).openFile(this.app.vault.getAbstractFileByPath(item.path));
         };
-        item.createSpan({ cls: `status-dot ${this.getStatusClass(inc.status)}` });
       });
-    });
+    };
+    renderTimeline("\u041F\u0440\u043E\u0435\u043A\u0442\u044B (\u044D\u0442\u0430 \u043D\u0435\u0434\u0435\u043B\u044F)", projects, "project");
+    renderTimeline("\u0417\u0430\u0434\u0430\u0447\u0438 (\u044D\u0442\u0430 \u043D\u0435\u0434\u0435\u043B\u044F)", tasks, "task");
   }
-  async getIncidentsFromVault() {
+  async getDataFromVault() {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
     const incidents = [];
+    const tasks = [];
+    const projects = [];
     const files = this.app.vault.getMarkdownFiles();
     const incidentsFolder = this.plugin.settings.incidentsFolder.toLowerCase();
     for (const file of files) {
-      if (file.path.toLowerCase().startsWith(incidentsFolder)) {
-        const cache = this.app.metadataCache.getFileCache(file);
-        if (cache == null ? void 0 : cache.frontmatter) {
-          incidents.push({
-            id: file.basename.replace("Incident-", ""),
-            name: cache.frontmatter["conversation_topic"] || file.basename,
-            status: cache.frontmatter["status"] || "Unknown",
-            date: cache.frontmatter["date"] || "Unknown",
-            path: file.path,
-            sender: cache.frontmatter["sender"] || "Unknown"
-          });
-        }
+      const cache = this.app.metadataCache.getFileCache(file);
+      let rawTags = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.tags) || [];
+      let tags = [];
+      if (typeof rawTags === "string") {
+        tags = rawTags.split(/[,;]/).map((t) => t.trim());
+      } else if (Array.isArray(rawTags)) {
+        tags = rawTags.map((t) => String(t).trim());
+      }
+      const cleanTags = tags.filter((t) => t && t.length > 0).map((t) => t.startsWith("#") ? t.substring(1).toLowerCase() : t.toLowerCase());
+      const fileBasename = file.basename;
+      const filePathLower = file.path.toLowerCase();
+      const linkedProject = (_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["linked_project"];
+      const isIncident = filePathLower.startsWith(incidentsFolder) || cleanTags.includes("incident");
+      const isTask = cleanTags.includes("task") || filePathLower.startsWith("tasks/") || !!linkedProject;
+      const isProject = cleanTags.includes("project") || filePathLower.startsWith("projects/");
+      if (isIncident) {
+        incidents.push({
+          id: fileBasename.replace(/^Incident-/, ""),
+          name: ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["conversation_topic"]) || fileBasename,
+          status: ((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["status"]) || "Unknown",
+          date: ((_e = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _e["date"]) || "Unknown",
+          path: file.path,
+          sender: ((_f = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _f["sender"]) || "Unknown"
+        });
+      } else if (isTask) {
+        tasks.push({
+          id: fileBasename,
+          name: fileBasename.replace(/^Task-/, ""),
+          status: ((_g = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _g["status"]) || "To Do",
+          deadline: ((_h = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _h["deadline"]) || "",
+          path: file.path,
+          priority: ((_i = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _i["priority"]) || 3,
+          tags: cleanTags,
+          linkedProject
+        });
+      } else if (isProject) {
+        projects.push({
+          id: fileBasename,
+          name: fileBasename.replace(/^Project-/, ""),
+          status: ((_j = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _j["status"]) || "Active",
+          path: file.path,
+          goal: ((_k = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _k["goal"]) || "",
+          priority: (_l = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _l["priority"],
+          // @ts-ignore
+          started: (_m = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _m["started"],
+          // @ts-ignore
+          target_date: (_n = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _n["target_date"]
+        });
       }
     }
-    return incidents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return {
+      incidents: incidents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      tasks: tasks.sort((a, b) => a.name.localeCompare(b.name)),
+      projects: projects.sort((a, b) => a.name.localeCompare(b.name))
+    };
+  }
+  renderHeroSection(container, incidents, tasks, projects) {
+    const hero = container.createDiv({ cls: "monitoring-hero-section" });
+    const leftSide = hero.createDiv({ cls: "hero-left" });
+    const now = new Date();
+    leftSide.createEl("h1", {
+      text: now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" }),
+      cls: "hero-title"
+    });
+    leftSide.createEl("p", {
+      text: `\u0410\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u0434\u0430\u043D\u043D\u044B\u0435 \u043D\u0430 ${now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`,
+      cls: "hero-subtitle"
+    });
+    const metrics = hero.createDiv({ cls: "hero-metrics" });
+    const activeTasks = tasks.filter((t) => t.status.toLowerCase().includes("progress") || t.status.toLowerCase().includes("\u0440\u0430\u0431\u043E\u0442\u0430")).length;
+    const pendingIncidents = incidents.filter((i) => i.status.toLowerCase().includes("pending") || i.status.toLowerCase().includes("\u043E\u0436\u0438\u0434\u0430\u0435\u0442")).length;
+    const completedThisWeek = tasks.filter((t) => t.status.toLowerCase().includes("done") || t.status.toLowerCase().includes("\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D")).length;
+    this.createMetricItem(metrics, activeTasks.toString(), "\u0417\u0430\u0434\u0430\u0447 \u0432 \u0440\u0430\u0431\u043E\u0442\u0435", "blue-glow");
+    this.createMetricItem(metrics, pendingIncidents.toString(), "\u0418\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432", "orange-glow");
+    this.createMetricItem(metrics, completedThisWeek.toString(), "\u0413\u043E\u0442\u043E\u0432\u043E (\u043D\u0435\u0434)", "green-glow");
+  }
+  createMetricItem(container, value, label, glowClass) {
+    const item = container.createDiv({ cls: `metric-item ${glowClass}` });
+    item.createDiv({ cls: "metric-value", text: value });
+    item.createDiv({ cls: "metric-label", text: label });
   }
   renderStats(container, incidents) {
-    const statsContainer = container.createDiv({ cls: "monitoring-stats-grid" });
-    const total = incidents.length;
-    const pending = incidents.filter((i) => {
-      const s = i.status.toLowerCase();
-      return s.includes("pending") || s.includes("\u043E\u0436\u0438\u0434\u0430\u0435\u0442");
-    }).length;
-    const inProgress = incidents.filter((i) => {
-      const s = i.status.toLowerCase();
-      return s.includes("active") || s.includes("\u0432 \u0440\u0430\u0431\u043E\u0442\u0435") || s.includes("\u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435");
-    }).length;
-    this.createStatCard(statsContainer, "\u0412\u0441\u0435\u0433\u043E \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432", total.toString(), "blue");
-    this.createStatCard(statsContainer, "\u041E\u0436\u0438\u0434\u0430\u044E\u0442", pending.toString(), "orange");
-    this.createStatCard(statsContainer, "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", inProgress.toString(), "green");
   }
   createStatCard(container, label, value, colorClass) {
-    const card = container.createDiv({ cls: `monitoring-stat-card ${colorClass}` });
-    card.createDiv({ cls: "stat-value", text: value });
-    card.createDiv({ cls: "stat-label", text: label });
+  }
+  renderProjectsTable(container, projects) {
+    if (projects.length === 0) {
+      container.createEl("p", { text: "\u041F\u0440\u043E\u0435\u043A\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442.", cls: "empty-state-text" });
+      return;
+    }
+    const table = container.createEl("table", { cls: "monitoring-data-table" });
+    const thead = table.createEl("thead");
+    const headerRow = thead.createEl("tr");
+    headerRow.createEl("th", { text: "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435" });
+    headerRow.createEl("th", { text: "\u0426\u0435\u043B\u044C" });
+    headerRow.createEl("th", { text: "\u0421\u0442\u0430\u0442\u0443\u0441" });
+    const tbody = table.createEl("tbody");
+    projects.forEach((p) => {
+      const row = tbody.createEl("tr");
+      const nameCell = row.createEl("td");
+      const link = nameCell.createEl("a", { text: p.name, cls: "incident-link" });
+      link.onclick = (e) => {
+        e.preventDefault();
+        this.app.workspace.getLeaf(false).openFile(this.app.vault.getAbstractFileByPath(p.path));
+      };
+      row.createEl("td", { text: p.goal || "---" });
+      const statusCell = row.createEl("td");
+      statusCell.createSpan({ text: p.status, cls: `status-badge ${this.getStatusClass(p.status)}` });
+    });
+  }
+  renderFilterTabs(container) {
+    const filters = this.plugin.settings.savedFilters;
+    if (filters.length === 0)
+      return;
+    const tabsContainer = container.createDiv({ cls: "filter-tabs-nav" });
+    const allTab = tabsContainer.createDiv({
+      cls: `filter-tab-btn ${this.currentFilterId === null ? "is-active" : ""}`,
+      text: "\u0412\u0441\u0435"
+    });
+    allTab.onclick = () => {
+      this.currentFilterId = null;
+      this.refreshContent();
+    };
+    filters.forEach((f, idx) => {
+      const tab = tabsContainer.createDiv({
+        cls: `filter-tab-btn ${this.currentFilterId === idx ? "is-active" : ""}`,
+        text: f.name
+      });
+      tab.onclick = () => {
+        this.currentFilterId = this.currentFilterId === idx ? null : idx;
+        this.refreshContent();
+      };
+    });
+  }
+  renderTasksTable(container, tasks) {
+    let filteredTasks = tasks;
+    if (this.currentFilterId !== null && this.plugin.settings.savedFilters[this.currentFilterId]) {
+      const activeFilter = this.plugin.settings.savedFilters[this.currentFilterId];
+      const filterTags = activeFilter.tags.map((t) => t.trim().replace(/^#/, "").toLowerCase());
+      const projectTag = filterTags.find((t) => t.startsWith("project"));
+      const filterProjName = projectTag ? projectTag.replace(/^project/, "") : null;
+      filteredTasks = tasks.filter((t) => {
+        const tagsMatch = filterTags.every((fTag) => t.tags.includes(fTag));
+        let projectMatch = false;
+        if (filterProjName && t.linkedProject) {
+          const cleanLinkProj = t.linkedProject.toLowerCase().replace(/\s+/g, "").replace(/[^\w\u0400-\u04FF]/g, "");
+          if (cleanLinkProj === filterProjName)
+            projectMatch = true;
+        }
+        return tagsMatch || projectMatch;
+      });
+    }
+    if (filteredTasks.length === 0) {
+      container.createEl("p", { text: "\u041D\u0435\u0442 \u0437\u0430\u0434\u0430\u0447, \u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0445 \u0444\u0438\u043B\u044C\u0442\u0440\u0430\u043C.", cls: "empty-state-text" });
+      return;
+    }
+    const table = container.createEl("table", { cls: "monitoring-data-table" });
+    const thead = table.createEl("thead");
+    const headerRow = thead.createEl("tr");
+    headerRow.createEl("th", { text: "\u0417\u0430\u0434\u0430\u0447\u0430" });
+    headerRow.createEl("th", { text: "\u0421\u0440\u043E\u043A" });
+    headerRow.createEl("th", { text: "\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442" });
+    headerRow.createEl("th", { text: "\u0421\u0442\u0430\u0442\u0443\u0441" });
+    const tbody = table.createEl("tbody");
+    filteredTasks.slice(0, 50).forEach((t) => {
+      const row = tbody.createEl("tr");
+      const nameCell = row.createEl("td");
+      const link = nameCell.createEl("a", { text: t.name, cls: "incident-link" });
+      link.onclick = (e) => {
+        e.preventDefault();
+        this.app.workspace.getLeaf(false).openFile(this.app.vault.getAbstractFileByPath(t.path));
+      };
+      row.createEl("td", { text: t.deadline || "---" });
+      const pCell = row.createEl("td");
+      pCell.createSpan({ text: t.priority.toString(), cls: `priority-badge priority-${t.priority}` });
+      const statusCell = row.createEl("td");
+      statusCell.createSpan({ text: t.status, cls: `status-badge ${this.getStatusClass(t.status)}` });
+    });
   }
   async renderTrackedSubjects(container) {
     const dashboardFn = this.plugin.settings.dashboardNoteName;
@@ -957,7 +1306,7 @@ var MainPageView = class extends import_obsidian4.ItemView {
   async generateWeeklyReport() {
     new import_obsidian4.Notice("\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043E\u0442\u0447\u0435\u0442\u0430 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E...");
     try {
-      const incidents = await this.getIncidentsFromVault();
+      const { incidents } = await this.getDataFromVault();
       if (incidents.length === 0) {
         new import_obsidian4.Notice("\u041D\u0435\u0442 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430.");
         return;
@@ -996,6 +1345,127 @@ ${incidents.slice(0, 10).map((i) => `- [[${i.path}|${i.name}]]`).join("\n")}`;
     }
   }
   async onClose() {
+  }
+};
+var FilterModal = class extends import_obsidian4.Modal {
+  constructor(app, projects, savedFilters, onSave) {
+    super(app);
+    this.currentName = "";
+    this.currentTags = [];
+    this.newTag = "";
+    this.projects = projects;
+    this.savedFilters = savedFilters;
+    this.editingFilters = JSON.parse(JSON.stringify(savedFilters));
+    this.onSave = onSave;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: "\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043D\u044B\u043C\u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u0430\u043C\u0438" });
+    const listContainer = contentEl.createDiv({ cls: "modal-filter-manager" });
+    const renderList = () => {
+      listContainer.empty();
+      if (this.editingFilters.length === 0) {
+        listContainer.createEl("p", { text: "\u0423 \u0432\u0430\u0441 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043D\u044B\u0445 \u0444\u0438\u043B\u044C\u0442\u0440\u043E\u0432", cls: "empty-state-text" });
+      }
+      this.editingFilters.forEach((f, idx) => {
+        const item = listContainer.createDiv({ cls: "modal-filter-mgmt-item" });
+        const mainInfo = item.createDiv({ cls: "mgmt-item-info" });
+        mainInfo.createEl("b", { text: f.name });
+        mainInfo.createEl("br");
+        mainInfo.createSpan({ text: f.tags.map((t) => `#${t}`).join(" "), cls: "mgmt-item-tags" });
+        const deleteBtn = item.createEl("button", { text: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C", cls: "footer-btn delete-btn" });
+        deleteBtn.onclick = () => {
+          this.editingFilters.splice(idx, 1);
+          renderList();
+        };
+      });
+    };
+    renderList();
+    contentEl.createEl("hr");
+    contentEl.createEl("h4", { text: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u0444\u0438\u043B\u044C\u0442\u0440" });
+    const form = contentEl.createDiv({ cls: "filter-creation-form" });
+    const nameInput = new import_obsidian4.TextComponent(form);
+    nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0444\u0438\u043B\u044C\u0442\u0440\u0430 (\u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440: \u0420\u0430\u0431\u043E\u0442\u0430 \u043F\u043E \u041F\u0440\u043E\u0435\u043A\u0442\u0443 \u0410)");
+    nameInput.inputEl.style.width = "100%";
+    nameInput.inputEl.style.marginBottom = "10px";
+    nameInput.onChange((v) => this.currentName = v);
+    const tagsPreview = form.createDiv({ cls: "active-filters-container", attr: { style: "min-height: 20px; margin-bottom: 10px;" } });
+    const renderTagsPreview = () => {
+      tagsPreview.empty();
+      this.currentTags.forEach((t) => {
+        const tagEl = tagsPreview.createSpan({ cls: "filter-tag", text: `#${t}` });
+        const x = tagEl.createSpan({ text: " \xD7", cls: "filter-tag-remove" });
+        x.onclick = () => {
+          this.currentTags = this.currentTags.filter((tag) => tag !== t);
+          renderTagsPreview();
+        };
+      });
+    };
+    const tagControls = form.createDiv({ attr: { style: "display: flex; gap: 8px; margin-bottom: 10px;" } });
+    const tagInput = new import_obsidian4.TextComponent(tagControls);
+    tagInput.setPlaceholder("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0442\u0435\u0433...");
+    tagInput.onChange((v) => this.newTag = v);
+    const addTagBtn = new import_obsidian4.ButtonComponent(tagControls).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").onClick(() => {
+      if (this.newTag) {
+        const t = this.newTag.trim().replace(/^#/, "");
+        if (!this.currentTags.includes(t)) {
+          this.currentTags.push(t);
+          renderTagsPreview();
+        }
+        this.newTag = "";
+        tagInput.setValue("");
+      }
+    });
+    const projectSelect = form.createEl("select", { attr: { style: "width: 100%; padding: 6px; margin-bottom: 15px;" } });
+    projectSelect.createEl("option", { text: "\u0418\u043B\u0438 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0435\u043A\u0442 \u0434\u043B\u044F \u0430\u0432\u0442\u043E-\u0442\u0435\u0433\u0430...", value: "" });
+    this.projects.forEach((p) => projectSelect.createEl("option", { text: p.name, value: p.name }));
+    projectSelect.onchange = () => {
+      const val = projectSelect.value;
+      if (val) {
+        const t = "Project" + val.replace(/\s+/g, "").replace(/[^\w\u0400-\u04FF]/g, "");
+        if (!this.currentTags.includes(t)) {
+          this.currentTags.push(t);
+          renderTagsPreview();
+        }
+        if (!this.currentName) {
+          this.currentName = `\u041F\u0440\u043E\u0435\u043A\u0442: ${val}`;
+          nameInput.setValue(this.currentName);
+        }
+        projectSelect.value = "";
+      }
+    };
+    const createFinalBtn = new import_obsidian4.ButtonComponent(form).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440 \u0432 \u0441\u043F\u0438\u0441\u043E\u043A").onClick(() => {
+      if (!this.currentName || this.currentTags.length === 0) {
+        new import_obsidian4.Notice("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0438 \u0445\u043E\u0442\u044F \u0431\u044B \u043E\u0434\u0438\u043D \u0442\u0435\u0433");
+        return;
+      }
+      this.editingFilters.unshift({ name: this.currentName, tags: [...this.currentTags] });
+      this.currentName = "";
+      this.currentTags = [];
+      nameInput.setValue("");
+      renderTagsPreview();
+      renderList();
+    });
+    createFinalBtn.buttonEl.style.width = "100%";
+    const footer = contentEl.createDiv({ cls: "modal-button-container", attr: { style: "display: flex; justify-content: flex-end; gap: 10px; margin-top: 30px;" } });
+    new import_obsidian4.ButtonComponent(footer).setButtonText("\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0441\u0435 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F").setCta().onClick(() => {
+      if (this.currentName && this.currentTags.length > 0) {
+        const alreadyAdded = this.editingFilters.some((f) => f.name === this.currentName);
+        if (!alreadyAdded) {
+          this.editingFilters.unshift({ name: this.currentName, tags: [...this.currentTags] });
+        }
+      } else if (this.currentName || this.newTag) {
+        if (this.currentTags.length === 0 && !this.newTag) {
+        } else if (this.newTag && !this.currentTags.includes(this.newTag)) {
+          const t = this.newTag.trim().replace(/^#/, "");
+          this.currentTags.push(t);
+          this.editingFilters.unshift({ name: this.currentName, tags: [...this.currentTags] });
+        }
+      }
+      this.onSave(this.editingFilters);
+      this.close();
+    });
+    new import_obsidian4.ButtonComponent(footer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
   }
 };
 var NamingModal = class extends import_obsidian4.Modal {
@@ -1051,13 +1521,13 @@ var MonitoringPlugin = class extends import_obsidian5.Plugin {
       MAIN_PAGE_VIEW_TYPE,
       (leaf) => new MainPageView(leaf, this)
     );
-    this.addRibbonIcon("mail", "\u0418\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u043E\u0447\u0442\u0443", async (evt) => {
+    this.addRibbonIcon("mail", "\u0418\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u043E\u0447\u0442\u0443", async () => {
       await this.processEmails();
     });
-    this.addRibbonIcon("message-square", "\u041A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418 \u0427\u0430\u0442", async (evt) => {
+    this.addRibbonIcon("message-square", "\u041A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418 \u0427\u0430\u0442", async () => {
       await this.activateChatView();
     });
-    this.addRibbonIcon("layout-dashboard", "\u0413\u043B\u0430\u0432\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432", async (evt) => {
+    this.addRibbonIcon("layout-dashboard", "\u0413\u043B\u0430\u0432\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432", async () => {
       await this.activateMainPageView();
     });
     this.addCommand({
@@ -1076,33 +1546,27 @@ var MonitoringPlugin = class extends import_obsidian5.Plugin {
     });
     this.registerMarkdownCodeBlockProcessor("monitoring-ui", (source, el, ctx) => {
       const container = el.createDiv({ cls: "monitoring-dashboard-ui" });
-      const title = container.createEl("h4", { text: "\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u0435\u043C" });
+      container.createEl("h4", { text: "\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u0435\u043C" });
       const wrapper = container.createDiv({ cls: "monitoring-input-wrapper" });
       const input = wrapper.createEl("input", {
         type: "text",
         placeholder: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043A\u043B\u044E\u0447\u0435\u0432\u044B\u0435 \u0441\u043B\u043E\u0432\u0430 \u0442\u0435\u043C\u044B...",
         cls: "monitoring-topic-input"
       });
-      const btn = wrapper.createEl("button", {
-        text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C",
-        cls: "monitoring-add-btn"
-      });
+      const btn = wrapper.createEl("button", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C", cls: "monitoring-add-btn" });
       btn.onclick = async () => {
         const topic = input.value.trim();
         if (!topic)
           return;
         const dashboardFile = this.app.vault.getAbstractFileByPath(this.settings.dashboardNoteName);
         if (dashboardFile) {
-          await this.app.fileManager.processFrontMatter(dashboardFile, (frontmatter) => {
-            if (!frontmatter["tracked_subjects"]) {
-              frontmatter["tracked_subjects"] = [];
-            }
-            if (!Array.isArray(frontmatter["tracked_subjects"])) {
-              frontmatter["tracked_subjects"] = [frontmatter["tracked_subjects"]];
-            }
-            if (!frontmatter["tracked_subjects"].includes(topic)) {
-              frontmatter["tracked_subjects"].push(topic);
-            }
+          await this.app.fileManager.processFrontMatter(dashboardFile, (fm) => {
+            if (!fm["tracked_subjects"])
+              fm["tracked_subjects"] = [];
+            if (!Array.isArray(fm["tracked_subjects"]))
+              fm["tracked_subjects"] = [fm["tracked_subjects"]];
+            if (!fm["tracked_subjects"].includes(topic))
+              fm["tracked_subjects"].push(topic);
           });
           new import_obsidian5.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
           input.value = "";
@@ -1111,409 +1575,81 @@ var MonitoringPlugin = class extends import_obsidian5.Plugin {
         }
       };
     });
-    this.registerMarkdownCodeBlockProcessor("monitoring-duration", async (source, el, ctx) => {
+    this.registerMarkdownCodeBlockProcessor("monitoring-duration", (source, el, ctx) => {
       const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
       if (!(file instanceof import_obsidian5.TFile))
         return;
-      const rootContainer = el.createDiv({ cls: "monitoring-duration-wrapper" });
-      const renderUI = async () => {
-        var _a;
-        rootContainer.empty();
-        const getLatestCache = () => this.app.metadataCache.getFileCache(file);
-        let cache = getLatestCache();
-        let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
-        const renderCollapsed = () => {
-          var _a2;
-          const panelContainer = rootContainer.createDiv({ cls: "monitoring-controls-panel" });
-          const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
-          const deadlineContainer = row1.createDiv({ cls: "monitoring-half-row" });
-          const durationBtn = deadlineContainer.createEl("button", {
-            cls: "monitoring-glass-btn monitoring-btn-full",
-            text: currentDeadline ? `\u23F3 ${currentDeadline}` : "\u{1F4C5} \u0421\u0440\u043E\u043A"
-          });
-          durationBtn.onclick = () => renderExpanded();
-          const priorityContainer = row1.createDiv({ cls: "monitoring-half-row" });
-          let isPriorityExpanded = false;
-          const renderPriorityUI = () => {
-            var _a3;
-            priorityContainer.empty();
-            const priority = parseInt((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["priority"]) || 3;
-            if (!isPriorityExpanded) {
-              const toggleBtn = priorityContainer.createEl("button", {
-                cls: "monitoring-glass-btn priority-toggle-btn monitoring-btn-full"
-              });
-              toggleBtn.createSpan({ text: "\u2B50", attr: { style: "margin-right: 4px;" } });
-              toggleBtn.createSpan({
-                text: priority.toString(),
-                cls: `priority-badge priority-${priority}`
-              });
-              toggleBtn.onclick = () => {
-                isPriorityExpanded = true;
-                renderPriorityUI();
-              };
-            } else {
-              const wrapper = priorityContainer.createDiv({ cls: "priority-slider-mini-wrapper" });
-              const slider = wrapper.createEl("input", {
-                type: "range",
-                cls: "priority-slider",
-                attr: { min: "1", max: "5", value: priority.toString() }
-              });
-              slider.onchange = async () => {
-                const val = parseInt(slider.value);
-                await this.app.fileManager.processFrontMatter(file, (fm) => {
-                  fm["priority"] = val;
-                });
-                new import_obsidian5.Notice(`\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442: ${val}`);
-                isPriorityExpanded = false;
-                renderPriorityUI();
-              };
-              const closeBtn = wrapper.createEl("button", { cls: "mini-close-btn", text: "\xD7" });
-              closeBtn.onclick = () => {
-                isPriorityExpanded = false;
-                renderPriorityUI();
-              };
-            }
-          };
-          renderPriorityUI();
-          const statusRow = panelContainer.createDiv({ cls: "monitoring-status-row segmented-control" });
-          const statuses = [
-            { label: "\u041F\u043B\u0430\u043D", value: "To Do", icon: "\u{1F3AF}" },
-            { label: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", value: "In Progress", icon: "\u26A1" },
-            { label: "\u0413\u043E\u0442\u043E\u0432\u043E", value: "Done", icon: "\u2705" }
-          ];
-          statuses.forEach((status) => {
-            var _a3;
-            const sBtn = statusRow.createEl("button", {
-              cls: "monitoring-glass-btn status-segment-btn",
-              text: `${status.icon} ${status.label}`
-            });
-            if (((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["status"]) === status.value) {
-              sBtn.addClass("is-active-status");
-            }
-            sBtn.onclick = async () => {
-              statusRow.querySelectorAll(".monitoring-glass-btn").forEach((b) => b.removeClass("is-active-status"));
-              sBtn.addClass("is-active-status");
-              await this.app.fileManager.processFrontMatter(file, (fm) => {
-                fm["status"] = status.value;
-              });
-              new import_obsidian5.Notice(`\u0421\u0442\u0430\u0442\u0443\u0441: ${status.label}`);
-            };
-          });
-          const toolsRow = panelContainer.createDiv({ cls: "monitoring-tools-row" });
-          const addTaskBtn = toolsRow.createEl("button", {
-            cls: "monitoring-glass-btn tool-btn",
-            text: "\u2795 \u0417\u0430\u0434\u0430\u0447\u0443"
-          });
-          addTaskBtn.onclick = () => {
-            const currentNoteName = file.basename;
-            const tagFromName = currentNoteName.replace(/\s+/g, "").replace(/[^\w\u0400-\u04FF]/g, "");
-            new NewTaskModal(this.app, async (taskName) => {
-              const newFile = await this.templateManager.createTaskNote(taskName, [tagFromName]);
-              await this.app.workspace.getLeaf(false).openFile(newFile);
-            }).open();
-          };
-          const resourceBtn = toolsRow.createEl("button", {
-            cls: "monitoring-glass-btn tool-btn",
-            text: "\u{1F517} \u0420\u0435\u0441\u0443\u0440\u0441"
-          });
-          resourceBtn.onclick = () => {
-            new ResourceModal(this.app, async (link, desc) => {
-              await this.addResourceToNote(file, link, desc);
-            }).open();
-          };
-          const tagBtn = toolsRow.createEl("button", {
-            cls: "monitoring-glass-btn tool-btn",
-            text: "\u{1F3F7}\uFE0F \u0422\u0435\u0433"
-          });
-          tagBtn.onclick = () => {
-            new TagModal(this.app, async (tag) => {
-              await this.addTagToNote(file, tag);
-            }).open();
-          };
-          const managementRow = panelContainer.createDiv({ cls: "monitoring-footer-row" });
-          const archiveBtn = managementRow.createEl("button", {
-            cls: "footer-btn",
-            text: "\u{1F4E6} \u0410\u0440\u0445\u0438\u0432"
-          });
-          archiveBtn.onclick = () => this.moveFileToFolder(file, "\u0410\u0440\u0445\u0438\u0432");
-          const trashBtn = managementRow.createEl("button", {
-            cls: "footer-btn",
-            text: "\u{1F5D1}\uFE0F \u041A\u043E\u0440\u0437\u0438\u043D\u0430"
-          });
-          trashBtn.onclick = () => this.moveFileToFolder(file, "\u041A\u043E\u0440\u0437\u0438\u043D\u0430");
-          const deleteBtn = managementRow.createEl("button", {
-            cls: "footer-btn delete-btn",
-            text: "\u274C \u0423\u0434\u0430\u043B\u0438\u0442\u044C"
-          });
-          deleteBtn.onclick = async () => {
-            if (confirm(`\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0437\u0430\u043C\u0435\u0442\u043A\u0443 "${file.basename}"?`)) {
-              await this.app.vault.delete(file);
-            }
-          };
-          const tagList = rootContainer.createDiv({ cls: "monitoring-tag-list" });
-          const currentTags = ((_a2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a2["tags"]) || [];
-          const tagsArray = Array.isArray(currentTags) ? currentTags : typeof currentTags === "string" ? currentTags.split(",").map((t) => t.trim()) : [];
-          tagsArray.forEach((tag) => {
-            const tagPill = tagList.createSpan({
-              cls: "monitoring-tag-pill",
-              text: `#${tag}`
-            });
-            tagPill.onclick = async () => {
-              if (confirm(`\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0442\u0435\u0433 #${tag}?`)) {
-                await this.removeTagFromNote(file, tag);
-              }
-            };
-          });
-        };
-        const renderExpanded = () => {
-          rootContainer.empty();
-          const container = rootContainer.createDiv({ cls: "monitoring-duration-ui" });
-          let viewedMonth = new Date();
-          viewedMonth.setDate(1);
-          let startDate = null;
-          let endDate = null;
-          if (currentDeadline) {
-            try {
-              const parts = currentDeadline.split(" to ");
-              if (parts.length === 2) {
-                startDate = new Date(parts[0]);
-                endDate = new Date(parts[1].split(" ")[0]);
-              } else {
-                startDate = new Date(currentDeadline.split(" ")[0]);
-              }
-            } catch (e) {
-            }
-          }
-          const calendarBody = container.createDiv();
-          let updateCalendar = () => {
-            calendarBody.empty();
-            const header = calendarBody.createDiv({ cls: "monitoring-calendar-header" });
-            const prevBtn = header.createEl("button", { cls: "calendar-nav-btn", text: "\u2039" });
-            const monthLabel = header.createSpan({ cls: "calendar-month-label" });
-            const nextBtn = header.createEl("button", { cls: "calendar-nav-btn", text: "\u203A" });
-            const monthNames = ["\u042F\u043D\u0432\u0430\u0440\u044C", "\u0424\u0435\u0432\u0440\u0430\u043B\u044C", "\u041C\u0430\u0440\u0442", "\u0410\u043F\u0440\u0435\u043B\u044C", "\u041C\u0430\u0439", "\u0418\u044E\u043D\u044C", "\u0418\u044E\u043B\u044C", "\u0410\u0432\u0433\u0443\u0441\u0442", "\u0421\u0435\u043D\u0442\u044F\u0431\u0440\u044C", "\u041E\u043A\u0442\u044F\u0431\u0440\u044C", "\u041D\u043E\u044F\u0431\u0440\u044C", "\u0414\u0435\u043A\u0430\u0431\u0440\u044C"];
-            monthLabel.textContent = `${monthNames[viewedMonth.getMonth()]} ${viewedMonth.getFullYear()}`;
-            prevBtn.onclick = () => {
-              viewedMonth.setMonth(viewedMonth.getMonth() - 1);
-              updateCalendar();
-            };
-            nextBtn.onclick = () => {
-              viewedMonth.setMonth(viewedMonth.getMonth() + 1);
-              updateCalendar();
-            };
-            const weekGrid = calendarBody.createDiv({ cls: "calendar-weekday-labels" });
-            ["\u041F\u043D", "\u0412\u0442", "\u0421\u0440", "\u0427\u0442", "\u041F\u0442", "\u0421\u0431", "\u0412\u0441"].forEach((d) => weekGrid.createSpan({ text: d }));
-            const grid = calendarBody.createDiv({ cls: "monitoring-calendar-grid" });
-            const firstDay = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1);
-            let startOffset = firstDay.getDay();
-            startOffset = startOffset === 0 ? 6 : startOffset - 1;
-            const startDateCounter = new Date(firstDay);
-            startDateCounter.setDate(firstDay.getDate() - startOffset);
-            const todayStr = new Date().toISOString().split("T")[0];
-            for (let i = 0; i < 42; i++) {
-              const d = new Date(startDateCounter);
-              const dateStr = d.toISOString().split("T")[0];
-              const cell = grid.createDiv({ cls: "calendar-day-cell" });
-              cell.createSpan({ cls: "calendar-day-num", text: d.getDate().toString() });
-              if (d.getMonth() !== viewedMonth.getMonth())
-                cell.addClass("is-other-month");
-              if (dateStr === todayStr)
-                cell.createDiv({ cls: "calendar-today-mark" });
-              const isSelected = startDate && dateStr === startDate.toISOString().split("T")[0] || endDate && dateStr === endDate.toISOString().split("T")[0];
-              if (isSelected)
-                cell.addClass("is-selected");
-              if (startDate && endDate && d > startDate && d < endDate)
-                cell.addClass("is-in-range");
-              cell.onclick = () => {
-                if (!startDate || startDate && endDate) {
-                  startDate = d;
-                  endDate = null;
-                } else if (startDate) {
-                  if (d > startDate)
-                    endDate = d;
-                  else {
-                    startDate = d;
-                    endDate = null;
-                  }
-                }
-                updateCalendar();
-              };
-              startDateCounter.setDate(startDateCounter.getDate() + 1);
-            }
-          };
-          updateCalendar();
-          const controls = container.createDiv({ cls: "duration-controls", attr: { style: "flex-direction: column; align-items: stretch; gap: 10px;" } });
-          const inputsRow = controls.createDiv({ attr: { style: "display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" } });
-          const startDateInput = inputsRow.createEl("input", { type: "date", cls: "duration-date-input" });
-          const toSpan = inputsRow.createSpan({ text: "\u0434\u043E", attr: { style: "opacity: 0.6; display: none;" } });
-          const endDateInput = inputsRow.createEl("input", { type: "date", cls: "duration-date-input", attr: { style: "display: none;" } });
-          const timePicker = inputsRow.createDiv({ cls: "duration-time-picker" });
-          timePicker.createSpan({ text: "\u23F0", attr: { style: "margin-right: 5px;" } });
-          const timeInput = timePicker.createEl("input", { type: "time" });
-          timeInput.value = currentDeadline.includes(":") ? currentDeadline.split(" ").pop() || "10:00" : "10:00";
-          const syncInputs = () => {
-            if (startDate)
-              startDateInput.value = startDate.toISOString().split("T")[0];
-            if (endDate) {
-              endDateInput.value = endDate.toISOString().split("T")[0];
-              endDateInput.style.display = "block";
-              toSpan.style.display = "inline";
-            } else {
-              endDateInput.style.display = "none";
-              toSpan.style.display = "none";
-            }
-          };
-          syncInputs();
-          startDateInput.onchange = () => {
-            startDate = new Date(startDateInput.value);
-            updateCalendar();
-          };
-          endDateInput.onchange = () => {
-            endDate = new Date(endDateInput.value);
-            updateCalendar();
-          };
-          const buttonsRow = controls.createDiv({ attr: { style: "display: flex; gap: 10px; justify-content: flex-end;" } });
-          const saveBtn = buttonsRow.createEl("button", { text: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C", cls: "monitoring-report-btn" });
-          saveBtn.onclick = async () => {
-            const sDate = startDateInput.value;
-            const eDate = endDateInput.style.display !== "none" ? endDateInput.value : null;
-            let deadlineStr = "";
-            if (sDate && eDate) {
-              deadlineStr = `${sDate} to ${eDate} ${timeInput.value}`;
-            } else if (sDate) {
-              deadlineStr = `${sDate} ${timeInput.value}`;
-            }
-            currentDeadline = deadlineStr;
-            await this.app.fileManager.processFrontMatter(file, (fm) => {
-              fm["deadline"] = deadlineStr;
-            });
-            new import_obsidian5.Notice(`\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E: ${deadlineStr}`);
-            rootContainer.empty();
-            renderCollapsed();
-          };
-          const cancelBtn = buttonsRow.createEl("button", { text: "\u041E\u0442\u043C\u0435\u043D\u0430", cls: "monitoring-glass-btn" });
-          cancelBtn.onclick = () => {
-            rootContainer.empty();
-            renderCollapsed();
-          };
-          const originalUpdateCalendar = updateCalendar;
-          updateCalendar = () => {
-            originalUpdateCalendar();
-            syncInputs();
-          };
-        };
-        renderCollapsed();
-      };
-      await renderUI();
-      this.registerEvent(this.app.metadataCache.on("changed", (f) => {
-        if (f.path === file.path)
-          renderUI();
-      }));
+      const child = new MonitoringDurationChild(el, this, file);
+      ctx.addChild(child);
     });
     this.addSettingTab(new MonitoringSettingTab(this.app, this));
   }
   async activateChatView() {
     const { workspace } = this.app;
-    let leaf = null;
-    const leaves = workspace.getLeavesOfType(CHAT_VIEW_TYPE);
-    if (leaves.length > 0) {
-      leaf = leaves[0];
-    } else {
+    let leaf = workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0];
+    if (!leaf) {
       leaf = workspace.getRightLeaf(false);
-      if (leaf) {
+      if (leaf)
         await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
-      }
     }
-    if (leaf) {
+    if (leaf)
       workspace.revealLeaf(leaf);
-    }
   }
   async activateMainPageView() {
     const { workspace } = this.app;
-    let leaf = null;
-    const leaves = workspace.getLeavesOfType(MAIN_PAGE_VIEW_TYPE);
-    if (leaves.length > 0) {
-      leaf = leaves[0];
-    } else {
+    let leaf = workspace.getLeavesOfType(MAIN_PAGE_VIEW_TYPE)[0];
+    if (!leaf) {
       leaf = workspace.getLeaf(true);
       await leaf.setViewState({ type: MAIN_PAGE_VIEW_TYPE, active: true });
     }
-    if (leaf) {
+    if (leaf)
       workspace.revealLeaf(leaf);
-    }
   }
   async processEmails() {
+    var _a;
     new import_obsidian5.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
     try {
       const allEmails = await this.outlookService.fetchEmails();
       allEmails.reverse();
       let newEmails = allEmails.filter((e) => !this.settings.scannedEmailIds.includes(e.entryId));
-      if (newEmails.length === 0) {
-        new import_obsidian5.Notice("\u041D\u0435\u0442 \u043D\u043E\u0432\u044B\u0445 \u043F\u0438\u0441\u0435\u043C. \u0411\u0435\u0440\u0435\u043C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 10 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430...");
+      if (newEmails.length === 0)
         newEmails = allEmails.slice(Math.max(allEmails.length - 10, 0));
-      }
       if (newEmails.length === 0) {
         new import_obsidian5.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
         return;
       }
-      const dashboardFn = this.settings.dashboardNoteName;
+      const dashboardFile = this.app.vault.getAbstractFileByPath(this.settings.dashboardNoteName);
       let trackedSubjects = [];
-      const dashboardFile = this.app.vault.getAbstractFileByPath(dashboardFn);
       if (dashboardFile) {
         const cache = this.app.metadataCache.getFileCache(dashboardFile);
-        if ((cache == null ? void 0 : cache.frontmatter) && Array.isArray(cache.frontmatter["tracked_subjects"])) {
+        if ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["tracked_subjects"]) {
           trackedSubjects = cache.frontmatter["tracked_subjects"].map((s) => s.toLowerCase());
         }
-      } else {
-        new import_obsidian5.Notice(`\u0414\u0430\u0448\u0431\u043E\u0440\u0434 "${dashboardFn}" \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D. \u0421\u043E\u0437\u0434\u0430\u044E \u043D\u043E\u0432\u044B\u0439 \u0438 \u0441\u043A\u0430\u043D\u0438\u0440\u0443\u044E 10 \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0445 \u043F\u0438\u0441\u0435\u043C...`);
-        const content = `---
-tracked_subjects:
-  - "\u041F\u0440\u0438\u043C\u0435\u0440 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u0430"
----
-# \u0418\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C \u043C\u043E\u043D\u0438\u0442\u043E\u0440\u0438\u043D\u0433\u0430
-
-> [!tip] \u041A\u0430\u043A \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0435 \u0442\u0435\u043C\u044B?
-> \u0412\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u0432\u043F\u0438\u0441\u0430\u0442\u044C \u0438\u0445 \u0440\u0443\u043A\u0430\u043C\u0438 \u0432 \`tracked_subjects\` \u0432\u0432\u0435\u0440\u0445\u0443, \u043B\u0438\u0431\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u0444\u043E\u0440\u043C\u0443 \u043D\u0438\u0436\u0435.
-
-\`\`\`monitoring-ui
-\`\`\`
-`;
-        await this.app.vault.create(dashboardFn, content);
-        newEmails = allEmails.slice(Math.max(allEmails.length - 10, 0));
       }
       let processedCount = 0;
       for (const email of newEmails) {
         if (trackedSubjects.length > 0) {
           const topicLower = email.conversationTopic.toLowerCase();
-          const isTracked = trackedSubjects.some((ts) => topicLower.includes(ts));
-          if (!isTracked)
+          if (!trackedSubjects.some((ts) => topicLower.includes(ts)))
             continue;
         }
         const existingNote = await this.templateManager.getIncidentNoteByTopic(email.conversationTopic);
         if (existingNote) {
-          new import_obsidian5.Notice(`\u041E\u0431\u043D\u043E\u0432\u043B\u044F\u0435\u043C \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442: ${email.conversationTopic}`);
           const content = await this.templateManager.readNoteContent(existingNote);
-          const summaryRegex = /## Текущее саммари инцидента\n([\s\S]*?)\n---/m;
-          const match = content.match(summaryRegex);
+          const match = content.match(/## Текущее саммари инцидента\n([\s\S]*?)\n---/m);
           const oldSummary = match ? match[1].trim() : "\u041B\u043E\u0433\u043E\u0432 \u043D\u0435\u0442.";
           const combinedSummary = await this.llmService.updateIncidentSummary(oldSummary, email.bodyPreview);
           await this.templateManager.updateIncidentNote(existingNote, email, combinedSummary);
         } else {
-          new import_obsidian5.Notice(`\u041D\u043E\u0432\u044B\u0439 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442: ${email.conversationTopic}`);
           const summary = await this.llmService.summarizeIncident(email.bodyPreview);
           await this.templateManager.createIncidentNote(email, summary);
         }
         processedCount++;
-        if (!this.settings.scannedEmailIds.includes(email.entryId)) {
+        if (!this.settings.scannedEmailIds.includes(email.entryId))
           this.settings.scannedEmailIds.push(email.entryId);
-        }
       }
       await this.saveSettings();
-      if (processedCount === 0) {
-        new import_obsidian5.Notice("\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C.");
-      } else {
-        new import_obsidian5.Notice(`\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
-      }
+      new import_obsidian5.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
     } catch (error) {
       console.error(error);
       new import_obsidian5.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
@@ -1532,23 +1668,17 @@ tracked_subjects:
   }
   async addResourceToNote(file, link, description) {
     const content = await this.app.vault.read(file);
-    const resourceSectionHeader = "## \u{1F517} \u0411\u0430\u0437\u0430 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432 \u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432";
-    let newContent = content;
+    const header = "## \u{1F517} \u0411\u0430\u0437\u0430 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432 \u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432";
     const normalizedLink = link.startsWith("http") ? `[\u041E\u0442\u043A\u0440\u044B\u0442\u044C](${link})` : `[\u041E\u0442\u043A\u0440\u044B\u0442\u044C](file:///${link.replace(/\\/g, "/")})`;
-    const finalDesc = description || link;
-    const newRow = `| ${normalizedLink} | ${finalDesc} |
+    const newRow = `| ${normalizedLink} | ${description || link} |
 `;
-    if (content.includes(resourceSectionHeader)) {
-      newContent = content.replace(resourceSectionHeader, `${resourceSectionHeader}
-${newRow}`);
-    } else {
-      newContent += `
+    let newContent = content.includes(header) ? content.replace(header, `${header}
+${newRow}`) : content + `
 
-${resourceSectionHeader}
+${header}
 | \u0420\u0435\u0441\u0443\u0440\u0441 | \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 |
 | --- | --- |
 ${newRow}`;
-    }
     await this.app.vault.modify(file, newContent);
   }
   async addTagToNote(file, tag) {
@@ -1578,14 +1708,11 @@ ${newRow}`;
   }
   async moveFileToFolder(file, folderName) {
     try {
-      let folder = this.app.vault.getAbstractFileByPath(folderName);
-      if (!folder) {
+      if (!this.app.vault.getAbstractFileByPath(folderName))
         await this.app.vault.createFolder(folderName);
-      }
       const newPath = `${folderName}/${file.name}`;
-      const existingFile = this.app.vault.getAbstractFileByPath(newPath);
-      if (existingFile) {
-        new import_obsidian5.Notice(`\u0424\u0430\u0439\u043B \u0441 \u0442\u0430\u043A\u0438\u043C \u0438\u043C\u0435\u043D\u0435\u043C \u0443\u0436\u0435 \u0435\u0441\u0442\u044C \u0432 "${folderName}"`);
+      if (this.app.vault.getAbstractFileByPath(newPath)) {
+        new import_obsidian5.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
         return;
       }
       await this.app.fileManager.renameFile(file, newPath);
@@ -1594,6 +1721,220 @@ ${newRow}`;
       console.error(e);
       new import_obsidian5.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
     }
+  }
+};
+var MonitoringDurationChild = class extends import_obsidian5.MarkdownRenderChild {
+  constructor(containerEl, plugin, file) {
+    super(containerEl);
+    this.plugin = plugin;
+    this.file = file;
+  }
+  async onload() {
+    this.rootContainer = this.containerEl.createDiv({ cls: "monitoring-duration-wrapper" });
+    await this.renderUI();
+    this.registerEvent(this.plugin.app.metadataCache.on("changed", (f) => {
+      if (f.path === this.file.path)
+        this.renderUI();
+    }));
+  }
+  async renderUI() {
+    var _a;
+    const rootContainer = this.rootContainer;
+    rootContainer.empty();
+    const cache = this.plugin.app.metadataCache.getFileCache(this.file);
+    let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
+    const renderCollapsed = () => {
+      var _a2;
+      rootContainer.empty();
+      const panelContainer = rootContainer.createDiv({ cls: "monitoring-controls-panel" });
+      const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
+      const dContainer = row1.createDiv({ cls: "monitoring-half-row" });
+      dContainer.createEl("button", {
+        cls: "monitoring-glass-btn monitoring-btn-full",
+        text: currentDeadline ? `\u23F3 ${currentDeadline}` : "\u{1F4C5} \u0421\u0440\u043E\u043A"
+      }).onclick = () => renderExpanded();
+      const pContainer = row1.createDiv({ cls: "monitoring-half-row" });
+      let isPExp = false;
+      const renderPUI = () => {
+        var _a3;
+        pContainer.empty();
+        const priority = parseInt((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["priority"]) || 3;
+        if (!isPExp) {
+          const tBtn = pContainer.createEl("button", { cls: "monitoring-glass-btn priority-toggle-btn monitoring-btn-full" });
+          tBtn.createSpan({ text: "\u2B50 ", attr: { style: "margin-right: 4px;" } });
+          tBtn.createSpan({ text: priority.toString(), cls: `priority-badge priority-${priority}` });
+          tBtn.onclick = () => {
+            isPExp = true;
+            renderPUI();
+          };
+        } else {
+          const wrap = pContainer.createDiv({ cls: "priority-slider-mini-wrapper" });
+          const slider = wrap.createEl("input", { type: "range", cls: "priority-slider", attr: { min: "1", max: "5", value: priority.toString() } });
+          slider.onchange = async () => {
+            await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+              fm["priority"] = parseInt(slider.value);
+            });
+            isPExp = false;
+            renderPUI();
+          };
+          wrap.createEl("button", { cls: "mini-close-btn", text: "\xD7" }).onclick = () => {
+            isPExp = false;
+            renderPUI();
+          };
+        }
+      };
+      renderPUI();
+      const statusRow = panelContainer.createDiv({ cls: "monitoring-status-row segmented-control" });
+      [{ l: "\u041F\u043B\u0430\u043D", v: "To Do", i: "\u{1F3AF}" }, { l: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", v: "In Progress", i: "\u26A1" }, { l: "\u0413\u043E\u0442\u043E\u0432\u043E", v: "Done", i: "\u2705" }].forEach((s) => {
+        var _a3;
+        const b = statusRow.createEl("button", { cls: "monitoring-glass-btn status-segment-btn", text: `${s.i} ${s.l}` });
+        if (((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["status"]) === s.v)
+          b.addClass("is-active-status");
+        b.onclick = async () => {
+          await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+            fm["status"] = s.v;
+          });
+        };
+      });
+      const toolsRow = panelContainer.createDiv({ cls: "monitoring-tools-row" });
+      toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u2795 \u0417\u0430\u0434\u0430\u0447\u0443" }).onclick = () => {
+        const projectName = this.file.basename.replace(/^Project-/, "");
+        const tag = "Project" + projectName.replace(/\s+/g, "").replace(/[^\w\u0400-\u04FF]/g, "");
+        new NewTaskModal(this.plugin.app, async (name) => {
+          const newF = await this.plugin.templateManager.createTaskNote(name, [tag], projectName);
+          if (newF) {
+            await this.plugin.templateManager.updateSubtaskTable(this.file, newF);
+            await this.plugin.app.workspace.getLeaf(false).openFile(newF);
+          }
+        }).open();
+      };
+      toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u{1F517} \u0420\u0435\u0441\u0443\u0440\u0441" }).onclick = () => new ResourceModal(this.plugin.app, (l, d) => this.plugin.addResourceToNote(this.file, l, d)).open();
+      toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u{1F3F7}\uFE0F \u0422\u0435\u0433" }).onclick = () => new TagModal(this.plugin.app, (t) => this.plugin.addTagToNote(this.file, t)).open();
+      const footer = panelContainer.createDiv({ cls: "monitoring-footer-row" });
+      footer.createEl("button", { cls: "footer-btn", text: "\u{1F4E6} \u0410\u0440\u0445\u0438\u0432" }).onclick = () => this.plugin.moveFileToFolder(this.file, "\u0410\u0440\u0445\u0438\u0432");
+      footer.createEl("button", { cls: "footer-btn", text: "\u{1F5D1}\uFE0F \u041A\u043E\u0440\u0437\u0438\u043D\u0430" }).onclick = () => this.plugin.moveFileToFolder(this.file, "\u041A\u043E\u0440\u0437\u0438\u043D\u0430");
+      footer.createEl("button", { cls: "footer-btn delete-btn", text: "\u274C \u0423\u0434\u0430\u043B\u0438\u0442\u044C" }).onclick = async () => {
+        if (confirm(`\u0423\u0434\u0430\u043B\u0438\u0442\u044C "${this.file.basename}"?`))
+          await this.plugin.app.vault.delete(this.file);
+      };
+      const tagList = rootContainer.createDiv({ cls: "monitoring-tag-list" });
+      const tags = ((_a2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a2["tags"]) || [];
+      (Array.isArray(tags) ? tags : [tags]).forEach((tag) => {
+        const pill = tagList.createSpan({ cls: "monitoring-tag-pill", text: `#${tag}` });
+        pill.onclick = () => {
+          if (confirm(`\u0423\u0434\u0430\u043B\u0438\u0442\u044C #${tag}?`))
+            this.plugin.removeTagFromNote(this.file, tag);
+        };
+      });
+    };
+    const renderExpanded = () => {
+      rootContainer.empty();
+      const container = rootContainer.createDiv({ cls: "monitoring-duration-ui" });
+      let viewedMonth = new Date();
+      viewedMonth.setDate(1);
+      let startDate = null;
+      let endDate = null;
+      if (currentDeadline) {
+        try {
+          const parts = currentDeadline.split(" to ");
+          if (parts.length === 2) {
+            startDate = new Date(parts[0]);
+            endDate = new Date(parts[1].split(" ")[0]);
+          } else {
+            startDate = new Date(currentDeadline.split(" ")[0]);
+          }
+        } catch (e) {
+        }
+      }
+      const calendarBody = container.createDiv();
+      const updateCalendar = () => {
+        calendarBody.empty();
+        const header = calendarBody.createDiv({ cls: "monitoring-calendar-header" });
+        header.createEl("button", { cls: "calendar-nav-btn", text: "\u2039" }).onclick = () => {
+          viewedMonth.setMonth(viewedMonth.getMonth() - 1);
+          updateCalendar();
+        };
+        header.createSpan({ cls: "calendar-month-label", text: `${["\u042F\u043D\u0432\u0430\u0440\u044C", "\u0424\u0435\u0432\u0440\u0430\u043B\u044C", "\u041C\u0430\u0440\u0442", "\u0410\u043F\u0440\u0435\u043B\u044C", "\u041C\u0430\u0439", "\u0418\u044E\u043D\u044C", "\u0418\u044E\u043B\u044C", "\u0410\u0432\u0433\u0443\u0441\u0442", "\u0421\u0435\u043D\u0442\u044F\u0431\u0440\u044C", "\u041E\u043A\u0442\u044F\u0431\u0440\u044C", "\u041D\u043E\u044F\u0431\u0440\u044C", "\u0414\u0435\u043A\u0430\u0431\u0440\u044C"][viewedMonth.getMonth()]} ${viewedMonth.getFullYear()}` });
+        header.createEl("button", { cls: "calendar-nav-btn", text: "\u203A" }).onclick = () => {
+          viewedMonth.setMonth(viewedMonth.getMonth() + 1);
+          updateCalendar();
+        };
+        const weekGrid = calendarBody.createDiv({ cls: "calendar-weekday-labels" });
+        ["\u041F\u043D", "\u0412\u0442", "\u0421\u0440", "\u0427\u0442", "\u041F\u0442", "\u0421\u0431", "\u0412\u0441"].forEach((d) => weekGrid.createSpan({ text: d }));
+        const grid = calendarBody.createDiv({ cls: "monitoring-calendar-grid" });
+        const firstDay = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1);
+        let startOffset = firstDay.getDay();
+        startOffset = startOffset === 0 ? 6 : startOffset - 1;
+        const counter = new Date(firstDay);
+        counter.setDate(firstDay.getDate() - startOffset);
+        const todayStr = new Date().toISOString().split("T")[0];
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(counter);
+          const dStr = d.toISOString().split("T")[0];
+          const cell = grid.createDiv({ cls: "calendar-day-cell" });
+          cell.createSpan({ cls: "calendar-day-num", text: d.getDate().toString() });
+          if (d.getMonth() !== viewedMonth.getMonth())
+            cell.addClass("is-other-month");
+          if (dStr === todayStr)
+            cell.createDiv({ cls: "calendar-today-mark" });
+          if (startDate && dStr === startDate.toISOString().split("T")[0] || endDate && dStr === endDate.toISOString().split("T")[0])
+            cell.addClass("is-selected");
+          if (startDate && endDate && d > startDate && d < endDate)
+            cell.addClass("is-in-range");
+          cell.onclick = () => {
+            if (!startDate || startDate && endDate) {
+              startDate = d;
+              endDate = null;
+            } else if (startDate) {
+              if (d > startDate)
+                endDate = d;
+              else {
+                startDate = d;
+                endDate = null;
+              }
+            }
+            updateCalendar();
+          };
+          counter.setDate(counter.getDate() + 1);
+        }
+        syncInputs();
+      };
+      const controls = container.createDiv({ cls: "duration-controls", attr: { style: "flex-direction: column; align-items: stretch; gap: 10px; display: flex;" } });
+      const inputsRow = controls.createDiv({ attr: { style: "display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" } });
+      const sInput = inputsRow.createEl("input", { type: "date", cls: "duration-date-input" });
+      const toSpan = inputsRow.createSpan({ text: "\u0434\u043E", attr: { style: "opacity: 0.6;" } });
+      const eInput = inputsRow.createEl("input", { type: "date", cls: "duration-date-input" });
+      const tPicker = inputsRow.createDiv({ cls: "duration-time-picker" });
+      tPicker.createSpan({ text: "\u23F0", attr: { style: "margin-right: 5px;" } });
+      const tInput = tPicker.createEl("input", { type: "time" });
+      tInput.value = currentDeadline.includes(":") ? currentDeadline.split(" ").pop() || "10:00" : "10:00";
+      const syncInputs = () => {
+        if (startDate)
+          sInput.value = startDate.toISOString().split("T")[0];
+        if (endDate) {
+          eInput.value = endDate.toISOString().split("T")[0];
+          eInput.style.display = "block";
+          toSpan.style.display = "inline";
+        } else {
+          eInput.style.display = "none";
+          toSpan.style.display = "none";
+        }
+      };
+      const bRow = controls.createDiv({ attr: { style: "display: flex; gap: 10px; justify-content: flex-end;" } });
+      bRow.createEl("button", { text: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C", cls: "monitoring-report-btn" }).onclick = async () => {
+        let dStr = sInput.value;
+        if (eInput.style.display !== "none" && eInput.value)
+          dStr += ` to ${eInput.value}`;
+        dStr += ` ${tInput.value}`;
+        await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+          fm["deadline"] = dStr;
+        });
+        renderCollapsed();
+      };
+      bRow.createEl("button", { text: "\u041E\u0442\u043C\u0435\u043D\u0430", cls: "monitoring-glass-btn" }).onclick = () => renderCollapsed();
+      updateCalendar();
+    };
+    renderCollapsed();
   }
 };
 var TagModal = class extends import_obsidian5.Modal {
@@ -1608,14 +1949,12 @@ var TagModal = class extends import_obsidian5.Modal {
     const input = new import_obsidian5.TextComponent(contentEl);
     input.setPlaceholder("\u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u0432\u0432\u043E\u0434\u0438\u0442\u044C \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
-    input.inputEl.style.marginBottom = "15px";
     input.inputEl.focus();
     const suggestionContainer = contentEl.createDiv({ cls: "tag-suggestions" });
     const allTags = Object.keys(this.app.metadataCache.getTags()).map((t) => t.substring(1));
     const renderSuggestions = (query) => {
       suggestionContainer.empty();
-      const filtered = allTags.filter((t) => t.toLowerCase().includes(query.toLowerCase())).slice(0, 10);
-      filtered.forEach((tag) => {
+      allTags.filter((t) => t.toLowerCase().includes(query.toLowerCase())).slice(0, 10).forEach((tag) => {
         const item = suggestionContainer.createDiv({ cls: "tag-suggestion-item", text: tag });
         item.onclick = () => {
           this.onSubmit(tag);
@@ -1652,35 +1991,18 @@ var ResourceModal = class extends import_obsidian5.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u0440\u0435\u0441\u0443\u0440\u0441" });
-    contentEl.createEl("label", { text: "\u0421\u0441\u044B\u043B\u043A\u0430 \u0438\u043B\u0438 \u043F\u0443\u0442\u044C \u043A \u0444\u0430\u0439\u043B\u0443:" });
-    const linkInput = new import_obsidian5.TextComponent(contentEl);
-    linkInput.setPlaceholder("http://... \u0438\u043B\u0438 C:\\path\\to\\file");
-    linkInput.onChange((val) => this.link = val);
-    linkInput.inputEl.style.width = "100%";
-    linkInput.inputEl.style.marginBottom = "15px";
-    contentEl.createEl("label", { text: "\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 (\u043D\u0435\u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E):" });
-    const descInput = new import_obsidian5.TextComponent(contentEl);
-    descInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0440\u0435\u0441\u0443\u0440\u0441\u0430...");
-    descInput.onChange((val) => this.description = val);
-    descInput.inputEl.style.width = "100%";
-    descInput.inputEl.style.marginBottom = "20px";
-    const btnContainer = contentEl.createDiv({ cls: "modal-button-container", attr: { style: "display: flex; gap: 10px; justify-content: flex-end;" } });
-    new import_obsidian5.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    const lInput = new import_obsidian5.TextComponent(contentEl);
+    lInput.setPlaceholder("http://...");
+    lInput.onChange((val) => this.link = val);
+    lInput.inputEl.style.width = "100%";
+    const dInput = new import_obsidian5.TextComponent(contentEl);
+    dInput.setPlaceholder("\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435...");
+    dInput.onChange((val) => this.description = val);
+    dInput.inputEl.style.width = "100%";
+    new import_obsidian5.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       if (this.link) {
         this.onSubmit(this.link, this.description);
         this.close();
-      } else {
-        new import_obsidian5.Notice("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u0441\u0441\u044B\u043B\u043A\u0443 \u0438\u043B\u0438 \u043F\u0443\u0442\u044C");
-      }
-    });
-    linkInput.inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        this.description = descInput.getValue();
-        if (this.link) {
-          this.onSubmit(this.link, this.description);
-          this.close();
-        }
       }
     });
   }
@@ -1698,27 +2020,14 @@ var NewTaskModal = class extends import_obsidian5.Modal {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443" });
     const input = new import_obsidian5.TextComponent(contentEl);
-    input.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0437\u0430\u0434\u0430\u0447\u0438...");
+    input.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
-    input.inputEl.style.marginBottom = "20px";
     input.inputEl.focus();
     input.onChange((val) => this.taskName = val);
-    const btnContainer = contentEl.createDiv({ cls: "modal-button-container", attr: { style: "display: flex; gap: 10px; justify-content: flex-end;" } });
-    new import_obsidian5.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian5.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
       if (this.taskName) {
         this.onSubmit(this.taskName);
         this.close();
-      } else {
-        new import_obsidian5.Notice("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0437\u0430\u0434\u0430\u0447\u0438");
-      }
-    });
-    input.inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (this.taskName) {
-          this.onSubmit(this.taskName);
-          this.close();
-        }
       }
     });
   }

@@ -102,6 +102,15 @@ export class ChatView extends ItemView {
 
         this.messages.forEach(msg => {
             const msgEl = this.messageContainer.createDiv(`chat-message ${msg.role}`);
+            
+            // Copy button
+            const copyBtn = msgEl.createDiv('chat-message-copy-btn');
+            setIcon(copyBtn, 'copy');
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(msg.content);
+                new Notice('Текст скопирован в буфер обмена');
+            };
+
             const contentEl = msgEl.createDiv('chat-message-content');
             
             // If it's the assistant, render as markdown

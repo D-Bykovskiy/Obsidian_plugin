@@ -14,6 +14,7 @@ export interface MonitoringPluginSettings {
     chatSystemPrompt: string;
     chatTemperature: number;
     incidentsFolder: string;
+    savedFilters: { name: string, tags: string[] }[];
 }
 
 export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
@@ -28,7 +29,8 @@ export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
     useMockLLM: false,
     chatSystemPrompt: "Ты полезный корпоративный ИИ-ассистент. Отвечай всегда на русском языке, помогай с анализом инцидентов и написанием документации.",
     chatTemperature: 0.7,
-    incidentsFolder: "mail"
+    incidentsFolder: "mail",
+    savedFilters: []
 };
 
 export class MonitoringSettingTab extends PluginSettingTab {
