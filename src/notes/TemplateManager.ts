@@ -196,6 +196,33 @@ cssclasses: [hide-properties]
         return vault.create(fileName, content);
     }
 
+    async createSimpleNote(name: string): Promise<TFile> {
+        const vault = this.app.vault;
+        const folder = this.settings.simpleNotesFolder || "notes";
+        await this.ensureFolder(folder);
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `${folder}/${name.replace(/[\\/:"*?<>|]/g, '_')}.md`;
+        
+        const content = `---
+type: note
+created: ${dateStr}
+tags: [note]
+cssclasses: [hide-properties]
+---
+
+# ${name}
+
+\`\`\`monitoring-duration
+\`\`\`
+
+## 📝 Текст заметки
+Начните писать здесь...
+
+`;
+        return vault.create(fileName, content);
+    }
+
     async ensureFolder(path: string) {
         const folder = this.app.vault.getAbstractFileByPath(path);
         if (!folder) {

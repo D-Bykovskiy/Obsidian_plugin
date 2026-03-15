@@ -34,9 +34,17 @@ interface IncidentData {
     sender: string;
 }
 
+interface SimpleNoteData {
+    id: string;
+    name: string;
+    path: string;
+    created: string;
+    tags: string[];
+}
+
 export class MainPageView extends ItemView {
     plugin: MonitoringPlugin;
-    activeTab: 'dashboard' | 'kanban' | 'calendar' = 'dashboard';
+    activeTab: 'dashboard' | 'kanban' | 'calendar' | 'notes' = 'dashboard';
     calendarWeekOffset: number = 0;
     currentFilterId: number | null = null; // ID of the currently active saved filter
 
@@ -117,10 +125,23 @@ export class MainPageView extends ItemView {
             }).open();
         };
 
+        const addNoteBtn = btnGroup.createEl('button', {
+            cls: 'monitoring-glass-btn monitoring-add-note',
+            text: '+ Заметку'
+        });
+        addNoteBtn.onclick = () => {
+            new NamingModal(this.app, "Создать новую заметку", async (name) => {
+                const file = await this.plugin.templateManager.createSimpleNote(name);
+                await this.app.workspace.getLeaf(false).openFile(file);
+                new Notice(`Заметка "${name}" создана!`);
+                this.refreshContent();
+            }).open();
+        };
+
         // Tabs Navigation
         this.renderTabs(container);
 
-        const { incidents, tasks, projects } = await this.getDataFromVault();
+        const { incidents, tasks, projects, notes } = await this.getDataFromVault();
 
         // Render content based on active tab
         if (this.activeTab === 'dashboard') {
@@ -129,6 +150,9 @@ export class MainPageView extends ItemView {
             this.renderKanban(container as HTMLElement, tasks, projects);
         } else if (this.activeTab === 'calendar') {
             this.renderCalendar(container as HTMLElement, tasks, projects);
+        } else if (this.activeTab === 'notes') {
+            const { notes } = await this.getDataFromVault();
+            this.renderNotes(container as HTMLElement, notes);
         }
 
         } finally {
@@ -142,7 +166,8 @@ export class MainPageView extends ItemView {
         const tabs = [
             { id: 'dashboard', label: 'Дашборд', icon: 'layout-dashboard' },
             { id: 'kanban', label: 'Канбан', icon: 'columns' },
-            { id: 'calendar', label: 'Календарь', icon: 'calendar' }
+            { id: 'calendar', label: 'Календарь', icon: 'calendar' },
+            { id: 'notes', label: 'Заметки', icon: 'file-text' }
         ];
 
         tabs.forEach(tab => {
@@ -417,13 +442,43 @@ export class MainPageView extends ItemView {
         renderTimeline("Задачи (эта неделя)", tasks, 'task');
     }
 
-    async getDataFromVault(): Promise<{incidents: IncidentData[], tasks: TaskData[], projects: ProjectData[]}> {
+    async renderNotes(container: HTMLElement, notes: SimpleNoteData[]) {
+        container.createEl('h3', { text: 'Мои Заметки' });
+        
+        if (notes.length === 0) {
+            container.createEl('p', { text: 'Заметок пока нет.', cls: 'empty-state-text' });
+            return;
+        }
+
+        const grid = container.createDiv({ cls: 'monitoring-notes-grid' });
+        notes.forEach(note => {
+            const card = grid.createDiv({ cls: 'monitoring-note-card' });
+            card.createDiv({ cls: 'note-card-title', text: note.name });
+            card.createDiv({ cls: 'note-card-date', text: `Создана: ${note.created || '---'}` });
+            
+            const tagsCont = card.createDiv({ cls: 'note-card-tags' });
+            note.tags.filter(t => t !== 'note').forEach(tag => {
+                tagsCont.createSpan({ cls: 'monitoring-tag-pill', text: `#${tag}` });
+            });
+
+            card.onclick = () => {
+                const file = this.plugin.app.vault.getAbstractFileByPath(note.path);
+                if (file instanceof TFile) {
+                    this.app.workspace.getLeaf(false).openFile(file);
+                }
+            };
+        });
+    }
+
+    async getDataFromVault(): Promise<{incidents: IncidentData[], tasks: TaskData[], projects: ProjectData[], notes: SimpleNoteData[]}> {
         const incidents: IncidentData[] = [];
         const tasks: TaskData[] = [];
         const projects: ProjectData[] = [];
+        const notes: SimpleNoteData[] = [];
         
         const files = this.app.vault.getMarkdownFiles();
         const incidentsFolder = this.plugin.settings.incidentsFolder.toLowerCase();
+        const simpleNotesFolder = (this.plugin.settings.simpleNotesFolder || "notes").toLowerCase();
         
         for (const file of files) {
             const cache = this.app.metadataCache.getFileCache(file);
@@ -480,9 +535,15 @@ export class MainPageView extends ItemView {
                     goal: cache?.frontmatter?.['goal'] || '',
                     priority: cache?.frontmatter?.['priority'],
                     // @ts-ignore
-                    started: cache?.frontmatter?.['started'],
-                    // @ts-ignore
                     target_date: cache?.frontmatter?.['target_date']
+                });
+            } else if (cleanTags.includes('note') || (simpleNotesFolder && filePathLower.startsWith(simpleNotesFolder))) {
+                notes.push({
+                    id: fileBasename,
+                    name: fileBasename,
+                    path: file.path,
+                    created: cache?.frontmatter?.['created'] || '',
+                    tags: cleanTags
                 });
             }
         }
@@ -490,7 +551,8 @@ export class MainPageView extends ItemView {
         return {
             incidents: incidents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
             tasks: tasks.sort((a, b) => a.name.localeCompare(b.name)),
-            projects: projects.sort((a, b) => a.name.localeCompare(b.name))
+            projects: projects.sort((a, b) => a.name.localeCompare(b.name)),
+            notes: notes.sort((a, b) => a.name.localeCompare(b.name))
         };
     }
 

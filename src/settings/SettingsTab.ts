@@ -14,6 +14,7 @@ export interface MonitoringPluginSettings {
     chatSystemPrompt: string;
     chatTemperature: number;
     incidentsFolder: string;
+    simpleNotesFolder: string;
     savedFilters: { name: string, tags: string[] }[];
 }
 
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
     chatSystemPrompt: "Ты полезный корпоративный ИИ-ассистент. Отвечай всегда на русском языке, помогай с анализом инцидентов и написанием документации.",
     chatTemperature: 0.7,
     incidentsFolder: "mail",
+    simpleNotesFolder: "notes",
     savedFilters: []
 };
 
@@ -153,6 +155,17 @@ export class MonitoringSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.incidentsFolder)
                 .onChange(async (value) => {
                     this.plugin.settings.incidentsFolder = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Simple Notes Folder')
+            .setDesc('Folder where simple notes will be created and displayed on the dashboard.')
+            .addText(text => text
+                .setPlaceholder('notes')
+                .setValue(this.plugin.settings.simpleNotesFolder)
+                .onChange(async (value) => {
+                    this.plugin.settings.simpleNotesFolder = value;
                     await this.plugin.saveSettings();
                 }));
 

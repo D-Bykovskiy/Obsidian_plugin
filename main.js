@@ -513,6 +513,30 @@ cssclasses: [hide-properties]
 `;
     return vault.create(fileName, content);
   }
+  async createSimpleNote(name) {
+    const vault = this.app.vault;
+    const folder = this.settings.simpleNotesFolder || "notes";
+    await this.ensureFolder(folder);
+    const dateStr = new Date().toISOString().split("T")[0];
+    const fileName = `${folder}/${name.replace(/[\\/:"*?<>|]/g, "_")}.md`;
+    const content = `---
+type: note
+created: ${dateStr}
+tags: [note]
+cssclasses: [hide-properties]
+---
+
+# ${name}
+
+\`\`\`monitoring-duration
+\`\`\`
+
+## \u{1F4DD} \u0422\u0435\u043A\u0441\u0442 \u0437\u0430\u043C\u0435\u0442\u043A\u0438
+\u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u043F\u0438\u0441\u0430\u0442\u044C \u0437\u0434\u0435\u0441\u044C...
+
+`;
+    return vault.create(fileName, content);
+  }
   async ensureFolder(path2) {
     const folder = this.app.vault.getAbstractFileByPath(path2);
     if (!folder) {
@@ -570,6 +594,7 @@ var DEFAULT_SETTINGS = {
   chatSystemPrompt: "\u0422\u044B \u043F\u043E\u043B\u0435\u0437\u043D\u044B\u0439 \u043A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442. \u041E\u0442\u0432\u0435\u0447\u0430\u0439 \u0432\u0441\u0435\u0433\u0434\u0430 \u043D\u0430 \u0440\u0443\u0441\u0441\u043A\u043E\u043C \u044F\u0437\u044B\u043A\u0435, \u043F\u043E\u043C\u043E\u0433\u0430\u0439 \u0441 \u0430\u043D\u0430\u043B\u0438\u0437\u043E\u043C \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0438 \u043D\u0430\u043F\u0438\u0441\u0430\u043D\u0438\u0435\u043C \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u0446\u0438\u0438.",
   chatTemperature: 0.7,
   incidentsFolder: "mail",
+  simpleNotesFolder: "notes",
   savedFilters: []
 };
 var MonitoringSettingTab = class extends import_obsidian2.PluginSettingTab {
@@ -623,6 +648,10 @@ var MonitoringSettingTab = class extends import_obsidian2.PluginSettingTab {
     containerEl.createEl("h3", { text: "Notes settings" });
     new import_obsidian2.Setting(containerEl).setName("Incidents Folder").setDesc("Folder where new incident notes will be created. Leave empty to use vault root.").addText((text) => text.setPlaceholder("mail").setValue(this.plugin.settings.incidentsFolder).onChange(async (value) => {
       this.plugin.settings.incidentsFolder = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Simple Notes Folder").setDesc("Folder where simple notes will be created and displayed on the dashboard.").addText((text) => text.setPlaceholder("notes").setValue(this.plugin.settings.simpleNotesFolder).onChange(async (value) => {
+      this.plugin.settings.simpleNotesFolder = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h3", { text: "Development / Testing" });
@@ -807,14 +836,29 @@ var MainPageView = class extends import_obsidian4.ItemView {
           this.refreshContent();
         }).open();
       };
+      const addNoteBtn = btnGroup.createEl("button", {
+        cls: "monitoring-glass-btn monitoring-add-note",
+        text: "+ \u0417\u0430\u043C\u0435\u0442\u043A\u0443"
+      });
+      addNoteBtn.onclick = () => {
+        new NamingModal(this.app, "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u043C\u0435\u0442\u043A\u0443", async (name) => {
+          const file = await this.plugin.templateManager.createSimpleNote(name);
+          await this.app.workspace.getLeaf(false).openFile(file);
+          new import_obsidian4.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!`);
+          this.refreshContent();
+        }).open();
+      };
       this.renderTabs(container);
-      const { incidents, tasks, projects } = await this.getDataFromVault();
+      const { incidents, tasks, projects, notes } = await this.getDataFromVault();
       if (this.activeTab === "dashboard") {
         this.renderDashboard(container, incidents, tasks, projects);
       } else if (this.activeTab === "kanban") {
         this.renderKanban(container, tasks, projects);
       } else if (this.activeTab === "calendar") {
         this.renderCalendar(container, tasks, projects);
+      } else if (this.activeTab === "notes") {
+        const { notes: notes2 } = await this.getDataFromVault();
+        this.renderNotes(container, notes2);
       }
     } finally {
       this.isRefreshing = false;
@@ -825,7 +869,8 @@ var MainPageView = class extends import_obsidian4.ItemView {
     const tabs = [
       { id: "dashboard", label: "\u0414\u0430\u0448\u0431\u043E\u0440\u0434", icon: "layout-dashboard" },
       { id: "kanban", label: "\u041A\u0430\u043D\u0431\u0430\u043D", icon: "columns" },
-      { id: "calendar", label: "\u041A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C", icon: "calendar" }
+      { id: "calendar", label: "\u041A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C", icon: "calendar" },
+      { id: "notes", label: "\u0417\u0430\u043C\u0435\u0442\u043A\u0438", icon: "file-text" }
     ];
     tabs.forEach((tab) => {
       const tabEl = tabsContainer.createDiv({
@@ -1059,13 +1104,38 @@ var MainPageView = class extends import_obsidian4.ItemView {
     renderTimeline("\u041F\u0440\u043E\u0435\u043A\u0442\u044B (\u044D\u0442\u0430 \u043D\u0435\u0434\u0435\u043B\u044F)", projects, "project");
     renderTimeline("\u0417\u0430\u0434\u0430\u0447\u0438 (\u044D\u0442\u0430 \u043D\u0435\u0434\u0435\u043B\u044F)", tasks, "task");
   }
+  async renderNotes(container, notes) {
+    container.createEl("h3", { text: "\u041C\u043E\u0438 \u0417\u0430\u043C\u0435\u0442\u043A\u0438" });
+    if (notes.length === 0) {
+      container.createEl("p", { text: "\u0417\u0430\u043C\u0435\u0442\u043E\u043A \u043F\u043E\u043A\u0430 \u043D\u0435\u0442.", cls: "empty-state-text" });
+      return;
+    }
+    const grid = container.createDiv({ cls: "monitoring-notes-grid" });
+    notes.forEach((note) => {
+      const card = grid.createDiv({ cls: "monitoring-note-card" });
+      card.createDiv({ cls: "note-card-title", text: note.name });
+      card.createDiv({ cls: "note-card-date", text: `\u0421\u043E\u0437\u0434\u0430\u043D\u0430: ${note.created || "---"}` });
+      const tagsCont = card.createDiv({ cls: "note-card-tags" });
+      note.tags.filter((t) => t !== "note").forEach((tag) => {
+        tagsCont.createSpan({ cls: "monitoring-tag-pill", text: `#${tag}` });
+      });
+      card.onclick = () => {
+        const file = this.plugin.app.vault.getAbstractFileByPath(note.path);
+        if (file instanceof import_obsidian4.TFile) {
+          this.app.workspace.getLeaf(false).openFile(file);
+        }
+      };
+    });
+  }
   async getDataFromVault() {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
     const incidents = [];
     const tasks = [];
     const projects = [];
+    const notes = [];
     const files = this.app.vault.getMarkdownFiles();
     const incidentsFolder = this.plugin.settings.incidentsFolder.toLowerCase();
+    const simpleNotesFolder = (this.plugin.settings.simpleNotesFolder || "notes").toLowerCase();
     for (const file of files) {
       const cache = this.app.metadataCache.getFileCache(file);
       let rawTags = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.tags) || [];
@@ -1111,16 +1181,23 @@ var MainPageView = class extends import_obsidian4.ItemView {
           goal: ((_k = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _k["goal"]) || "",
           priority: (_l = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _l["priority"],
           // @ts-ignore
-          started: (_m = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _m["started"],
-          // @ts-ignore
-          target_date: (_n = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _n["target_date"]
+          target_date: (_m = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _m["target_date"]
+        });
+      } else if (cleanTags.includes("note") || simpleNotesFolder && filePathLower.startsWith(simpleNotesFolder)) {
+        notes.push({
+          id: fileBasename,
+          name: fileBasename,
+          path: file.path,
+          created: ((_n = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _n["created"]) || "",
+          tags: cleanTags
         });
       }
     }
     return {
       incidents: incidents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       tasks: tasks.sort((a, b) => a.name.localeCompare(b.name)),
-      projects: projects.sort((a, b) => a.name.localeCompare(b.name))
+      projects: projects.sort((a, b) => a.name.localeCompare(b.name)),
+      notes: notes.sort((a, b) => a.name.localeCompare(b.name))
     };
   }
   renderHeroSection(container, incidents, tasks, projects) {
@@ -1738,64 +1815,67 @@ var MonitoringDurationChild = class extends import_obsidian5.MarkdownRenderChild
     }));
   }
   async renderUI() {
-    var _a;
+    var _a, _b;
     const rootContainer = this.rootContainer;
     rootContainer.empty();
     const cache = this.plugin.app.metadataCache.getFileCache(this.file);
     let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
+    const isSimpleNote = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["type"]) === "note";
     const renderCollapsed = () => {
       var _a2;
       rootContainer.empty();
       const panelContainer = rootContainer.createDiv({ cls: "monitoring-controls-panel" });
-      const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
-      const dContainer = row1.createDiv({ cls: "monitoring-half-row" });
-      dContainer.createEl("button", {
-        cls: "monitoring-glass-btn monitoring-btn-full",
-        text: currentDeadline ? `\u23F3 ${currentDeadline}` : "\u{1F4C5} \u0421\u0440\u043E\u043A"
-      }).onclick = () => renderExpanded();
-      const pContainer = row1.createDiv({ cls: "monitoring-half-row" });
-      let isPExp = false;
-      const renderPUI = () => {
-        var _a3;
-        pContainer.empty();
-        const priority = parseInt((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["priority"]) || 3;
-        if (!isPExp) {
-          const tBtn = pContainer.createEl("button", { cls: "monitoring-glass-btn priority-toggle-btn monitoring-btn-full" });
-          tBtn.createSpan({ text: "\u2B50 ", attr: { style: "margin-right: 4px;" } });
-          tBtn.createSpan({ text: priority.toString(), cls: `priority-badge priority-${priority}` });
-          tBtn.onclick = () => {
-            isPExp = true;
-            renderPUI();
-          };
-        } else {
-          const wrap = pContainer.createDiv({ cls: "priority-slider-mini-wrapper" });
-          const slider = wrap.createEl("input", { type: "range", cls: "priority-slider", attr: { min: "1", max: "5", value: priority.toString() } });
-          slider.onchange = async () => {
-            await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
-              fm["priority"] = parseInt(slider.value);
-            });
-            isPExp = false;
-            renderPUI();
-          };
-          wrap.createEl("button", { cls: "mini-close-btn", text: "\xD7" }).onclick = () => {
-            isPExp = false;
-            renderPUI();
-          };
-        }
-      };
-      renderPUI();
-      const statusRow = panelContainer.createDiv({ cls: "monitoring-status-row segmented-control" });
-      [{ l: "\u041F\u043B\u0430\u043D", v: "To Do", i: "\u{1F3AF}" }, { l: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", v: "In Progress", i: "\u26A1" }, { l: "\u0413\u043E\u0442\u043E\u0432\u043E", v: "Done", i: "\u2705" }].forEach((s) => {
-        var _a3;
-        const b = statusRow.createEl("button", { cls: "monitoring-glass-btn status-segment-btn", text: `${s.i} ${s.l}` });
-        if (((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["status"]) === s.v)
-          b.addClass("is-active-status");
-        b.onclick = async () => {
-          await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
-            fm["status"] = s.v;
-          });
+      if (!isSimpleNote) {
+        const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
+        const dContainer = row1.createDiv({ cls: "monitoring-half-row" });
+        dContainer.createEl("button", {
+          cls: "monitoring-glass-btn monitoring-btn-full",
+          text: currentDeadline ? `\u23F3 ${currentDeadline}` : "\u{1F4C5} \u0421\u0440\u043E\u043A"
+        }).onclick = () => renderExpanded();
+        const pContainer = row1.createDiv({ cls: "monitoring-half-row" });
+        let isPExp = false;
+        const renderPUI = () => {
+          var _a3;
+          pContainer.empty();
+          const priority = parseInt((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["priority"]) || 3;
+          if (!isPExp) {
+            const tBtn = pContainer.createEl("button", { cls: "monitoring-glass-btn priority-toggle-btn monitoring-btn-full" });
+            tBtn.createSpan({ text: "\u2B50 ", attr: { style: "margin-right: 4px;" } });
+            tBtn.createSpan({ text: priority.toString(), cls: `priority-badge priority-${priority}` });
+            tBtn.onclick = () => {
+              isPExp = true;
+              renderPUI();
+            };
+          } else {
+            const wrap = pContainer.createDiv({ cls: "priority-slider-mini-wrapper" });
+            const slider = wrap.createEl("input", { type: "range", cls: "priority-slider", attr: { min: "1", max: "5", value: priority.toString() } });
+            slider.onchange = async () => {
+              await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+                fm["priority"] = parseInt(slider.value);
+              });
+              isPExp = false;
+              renderPUI();
+            };
+            wrap.createEl("button", { cls: "mini-close-btn", text: "\xD7" }).onclick = () => {
+              isPExp = false;
+              renderPUI();
+            };
+          }
         };
-      });
+        renderPUI();
+        const statusRow = panelContainer.createDiv({ cls: "monitoring-status-row segmented-control" });
+        [{ l: "\u041F\u043B\u0430\u043D", v: "To Do", i: "\u{1F3AF}" }, { l: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", v: "In Progress", i: "\u26A1" }, { l: "\u0413\u043E\u0442\u043E\u0432\u043E", v: "Done", i: "\u2705" }].forEach((s) => {
+          var _a3;
+          const b = statusRow.createEl("button", { cls: "monitoring-glass-btn status-segment-btn", text: `${s.i} ${s.l}` });
+          if (((_a3 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a3["status"]) === s.v)
+            b.addClass("is-active-status");
+          b.onclick = async () => {
+            await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+              fm["status"] = s.v;
+            });
+          };
+        });
+      }
       const toolsRow = panelContainer.createDiv({ cls: "monitoring-tools-row" });
       toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u2795 \u0417\u0430\u0434\u0430\u0447\u0443" }).onclick = () => {
         const projectName = this.file.basename.replace(/^Project-/, "");

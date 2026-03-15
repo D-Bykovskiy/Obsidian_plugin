@@ -254,45 +254,50 @@ class MonitoringDurationChild extends MarkdownRenderChild {
         const cache = this.plugin.app.metadataCache.getFileCache(this.file);
         let currentDeadline = cache?.frontmatter?.['deadline'] || "";
         
+        const isSimpleNote = cache?.frontmatter?.['type'] === 'note';
+        
         const renderCollapsed = () => {
             rootContainer.empty();
             const panelContainer = rootContainer.createDiv({ cls: 'monitoring-controls-panel' });
-            const row1 = panelContainer.createDiv({ cls: 'monitoring-split-row' });
-            
-            const dContainer = row1.createDiv({ cls: 'monitoring-half-row' });
-            dContainer.createEl('button', {
-                cls: 'monitoring-glass-btn monitoring-btn-full',
-                text: currentDeadline ? `⏳ ${currentDeadline}` : '📅 Срок'
-            }).onclick = () => renderExpanded();
 
-            const pContainer = row1.createDiv({ cls: 'monitoring-half-row' });
-            let isPExp = false;
-            const renderPUI = () => {
-                pContainer.empty();
-                const priority = parseInt(cache?.frontmatter?.['priority']) || 3;
-                if (!isPExp) {
-                    const tBtn = pContainer.createEl('button', { cls: 'monitoring-glass-btn priority-toggle-btn monitoring-btn-full' });
-                    tBtn.createSpan({ text: '⭐ ', attr: { style: 'margin-right: 4px;' } });
-                    tBtn.createSpan({ text: priority.toString(), cls: `priority-badge priority-${priority}` });
-                    tBtn.onclick = () => { isPExp = true; renderPUI(); };
-                } else {
-                    const wrap = pContainer.createDiv({ cls: 'priority-slider-mini-wrapper' });
-                    const slider = wrap.createEl('input', { type: 'range', cls: 'priority-slider', attr: { min: '1', max: '5', value: priority.toString() } });
-                    slider.onchange = async () => {
-                        await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['priority'] = parseInt(slider.value); });
-                        isPExp = false; renderPUI();
-                    };
-                    wrap.createEl('button', { cls: 'mini-close-btn', text: '×' }).onclick = () => { isPExp = false; renderPUI(); };
-                }
-            };
-            renderPUI();
+            if (!isSimpleNote) {
+                const row1 = panelContainer.createDiv({ cls: 'monitoring-split-row' });
+                
+                const dContainer = row1.createDiv({ cls: 'monitoring-half-row' });
+                dContainer.createEl('button', {
+                    cls: 'monitoring-glass-btn monitoring-btn-full',
+                    text: currentDeadline ? `⏳ ${currentDeadline}` : '📅 Срок'
+                }).onclick = () => renderExpanded();
 
-            const statusRow = panelContainer.createDiv({ cls: 'monitoring-status-row segmented-control' });
-            [{ l: 'План', v: 'To Do', i: '🎯' }, { l: 'В работе', v: 'In Progress', i: '⚡' }, { l: 'Готово', v: 'Done', i: '✅' }].forEach(s => {
-                const b = statusRow.createEl('button', { cls: 'monitoring-glass-btn status-segment-btn', text: `${s.i} ${s.l}` });
-                if (cache?.frontmatter?.['status'] === s.v) b.addClass('is-active-status');
-                b.onclick = async () => { await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['status'] = s.v; }); };
-            });
+                const pContainer = row1.createDiv({ cls: 'monitoring-half-row' });
+                let isPExp = false;
+                const renderPUI = () => {
+                    pContainer.empty();
+                    const priority = parseInt(cache?.frontmatter?.['priority']) || 3;
+                    if (!isPExp) {
+                        const tBtn = pContainer.createEl('button', { cls: 'monitoring-glass-btn priority-toggle-btn monitoring-btn-full' });
+                        tBtn.createSpan({ text: '⭐ ', attr: { style: 'margin-right: 4px;' } });
+                        tBtn.createSpan({ text: priority.toString(), cls: `priority-badge priority-${priority}` });
+                        tBtn.onclick = () => { isPExp = true; renderPUI(); };
+                    } else {
+                        const wrap = pContainer.createDiv({ cls: 'priority-slider-mini-wrapper' });
+                        const slider = wrap.createEl('input', { type: 'range', cls: 'priority-slider', attr: { min: '1', max: '5', value: priority.toString() } });
+                        slider.onchange = async () => {
+                            await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['priority'] = parseInt(slider.value); });
+                            isPExp = false; renderPUI();
+                        };
+                        wrap.createEl('button', { cls: 'mini-close-btn', text: '×' }).onclick = () => { isPExp = false; renderPUI(); };
+                    }
+                };
+                renderPUI();
+
+                const statusRow = panelContainer.createDiv({ cls: 'monitoring-status-row segmented-control' });
+                [{ l: 'План', v: 'To Do', i: '🎯' }, { l: 'В работе', v: 'In Progress', i: '⚡' }, { l: 'Готово', v: 'Done', i: '✅' }].forEach(s => {
+                    const b = statusRow.createEl('button', { cls: 'monitoring-glass-btn status-segment-btn', text: `${s.i} ${s.l}` });
+                    if (cache?.frontmatter?.['status'] === s.v) b.addClass('is-active-status');
+                    b.onclick = async () => { await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['status'] = s.v; }); };
+                });
+            }
 
             const toolsRow = panelContainer.createDiv({ cls: 'monitoring-tools-row' });
             toolsRow.createEl('button', { cls: 'monitoring-glass-btn tool-btn', text: '➕ Задачу' }).onclick = () => {
