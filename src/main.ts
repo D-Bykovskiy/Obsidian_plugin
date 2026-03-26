@@ -40,7 +40,7 @@ export default class MonitoringPlugin extends Plugin {
             await this.activateChatView();
         });
 
-        this.addRibbonIcon('layout-dashboard', 'Главная панель проектов', async () => {
+        this.addRibbonIcon('brain', 'Главная панель проектов', async () => {
             await this.activateMainPageView();
         });
 
@@ -318,9 +318,9 @@ class MonitoringDurationChild extends MarkdownRenderChild {
             toolsRow.createEl('button', { cls: 'monitoring-glass-btn tool-btn', text: '🏷️ Тег' }).onclick = () => new TagModal(this.plugin.app, (t) => this.plugin.addTagToNote(this.file, t)).open();
 
             const footer = panelContainer.createDiv({ cls: 'monitoring-footer-row' });
-            footer.createEl('button', { cls: 'footer-btn', text: '📦 Архив' }).onclick = () => this.plugin.moveFileToFolder(this.file, "Архив");
-            footer.createEl('button', { cls: 'footer-btn', text: '🗑️ Корзина' }).onclick = () => this.plugin.moveFileToFolder(this.file, "Корзина");
-            footer.createEl('button', { cls: 'footer-btn delete-btn', text: '❌ Удалить' }).onclick = async () => { if (confirm(`Удалить "${this.file.basename}"?`)) await this.plugin.app.vault.delete(this.file); };
+            footer.createEl('button', { cls: 'monitoring-glass-btn footer-btn', text: '📦 Архив' }).onclick = () => this.plugin.moveFileToFolder(this.file, "Архив");
+            footer.createEl('button', { cls: 'monitoring-glass-btn footer-btn', text: '🗑️ Корзина' }).onclick = () => this.plugin.moveFileToFolder(this.file, "Корзина");
+            footer.createEl('button', { cls: 'monitoring-glass-btn footer-btn delete-btn', text: '❌ Удалить' }).onclick = async () => { if (confirm(`Удалить "${this.file.basename}"?`)) await this.plugin.app.vault.delete(this.file); };
 
             const tagList = rootContainer.createDiv({ cls: 'monitoring-tag-list' });
             const tags = cache?.frontmatter?.['tags'] || [];

@@ -784,7 +784,7 @@ var MainPageView = class extends import_obsidian4.ItemView {
     return "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F";
   }
   getIcon() {
-    return "layout-dashboard";
+    return "brain";
   }
   async onOpen() {
     await this.refreshContent();
@@ -1604,7 +1604,7 @@ var MonitoringPlugin = class extends import_obsidian5.Plugin {
     this.addRibbonIcon("message-square", "\u041A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418 \u0427\u0430\u0442", async () => {
       await this.activateChatView();
     });
-    this.addRibbonIcon("layout-dashboard", "\u0413\u043B\u0430\u0432\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432", async () => {
+    this.addRibbonIcon("brain", "\u0413\u043B\u0430\u0432\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432", async () => {
       await this.activateMainPageView();
     });
     this.addCommand({
@@ -1891,9 +1891,9 @@ var MonitoringDurationChild = class extends import_obsidian5.MarkdownRenderChild
       toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u{1F517} \u0420\u0435\u0441\u0443\u0440\u0441" }).onclick = () => new ResourceModal(this.plugin.app, (l, d) => this.plugin.addResourceToNote(this.file, l, d)).open();
       toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u{1F3F7}\uFE0F \u0422\u0435\u0433" }).onclick = () => new TagModal(this.plugin.app, (t) => this.plugin.addTagToNote(this.file, t)).open();
       const footer = panelContainer.createDiv({ cls: "monitoring-footer-row" });
-      footer.createEl("button", { cls: "footer-btn", text: "\u{1F4E6} \u0410\u0440\u0445\u0438\u0432" }).onclick = () => this.plugin.moveFileToFolder(this.file, "\u0410\u0440\u0445\u0438\u0432");
-      footer.createEl("button", { cls: "footer-btn", text: "\u{1F5D1}\uFE0F \u041A\u043E\u0440\u0437\u0438\u043D\u0430" }).onclick = () => this.plugin.moveFileToFolder(this.file, "\u041A\u043E\u0440\u0437\u0438\u043D\u0430");
-      footer.createEl("button", { cls: "footer-btn delete-btn", text: "\u274C \u0423\u0434\u0430\u043B\u0438\u0442\u044C" }).onclick = async () => {
+      footer.createEl("button", { cls: "monitoring-glass-btn footer-btn", text: "\u{1F4E6} \u0410\u0440\u0445\u0438\u0432" }).onclick = () => this.plugin.moveFileToFolder(this.file, "\u0410\u0440\u0445\u0438\u0432");
+      footer.createEl("button", { cls: "monitoring-glass-btn footer-btn", text: "\u{1F5D1}\uFE0F \u041A\u043E\u0440\u0437\u0438\u043D\u0430" }).onclick = () => this.plugin.moveFileToFolder(this.file, "\u041A\u043E\u0440\u0437\u0438\u043D\u0430");
+      footer.createEl("button", { cls: "monitoring-glass-btn footer-btn delete-btn", text: "\u274C \u0423\u0434\u0430\u043B\u0438\u0442\u044C" }).onclick = async () => {
         if (confirm(`\u0423\u0434\u0430\u043B\u0438\u0442\u044C "${this.file.basename}"?`))
           await this.plugin.app.vault.delete(this.file);
       };

@@ -62,7 +62,7 @@ export class MainPageView extends ItemView {
     }
 
     getIcon() {
-        return 'layout-dashboard';
+        return 'brain';
     }
 
     private isRefreshing = false;
