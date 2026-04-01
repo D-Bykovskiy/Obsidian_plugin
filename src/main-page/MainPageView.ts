@@ -245,7 +245,10 @@ class NamingModal extends Modal {
         input.onChange(value => this.name = value);
         input.inputEl.style.width = "100%";
         input.inputEl.style.marginBottom = "20px";
-        input.inputEl.focus();
+        
+        requestAnimationFrame(() => {
+            input.inputEl.focus();
+        });
 
         const btnContainer = contentEl.createDiv({ cls: 'modal-button-container' });
         

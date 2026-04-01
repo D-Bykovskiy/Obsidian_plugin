@@ -405,8 +405,7 @@ ${summary}
 
 ---
 ## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447
-| \u0417\u0430\u0434\u0430\u0447\u0430 | \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A |
-| --- | --- | --- | --- |
+\u2B1C [[\u0428\u0430\u0431\u043B\u043E\u043D]] | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A
 
 ## \u041B\u043E\u0433 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439
 
@@ -542,6 +541,9 @@ cssclasses: [hide-properties]
 ## \u{1F4DD} \u0422\u0435\u043A\u0441\u0442 \u0437\u0430\u043C\u0435\u0442\u043A\u0438
 \u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u043F\u0438\u0441\u0430\u0442\u044C \u0437\u0434\u0435\u0441\u044C...
 
+## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447
+\u2B1C [[\u0428\u0430\u0431\u043B\u043E\u043D]] | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A
+
 `;
     return vault.create(fileName, content);
   }
@@ -560,37 +562,33 @@ cssclasses: [hide-properties]
     const cache = this.app.metadataCache.getFileCache(taskFile);
     const status = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["status"]) || "To Do";
     const deadline = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["deadline"]) || "\u041D\u0435 \u0437\u0430\u0434\u0430\u043D\u043E";
-    const description = "\u041D\u043E\u0432\u0430\u044F \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447\u0430";
-    const tableHeader = "## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447";
-    const tableRow = `| [[${taskFile.basename}]] | ${description} | ${status} | ${deadline} |
-`;
-    if (content.includes(tableHeader)) {
-      const lines = content.split("\n");
-      const headerIndex = lines.findIndex((l) => l.includes(tableHeader));
-      const sepIndex = lines.findIndex(
-        (l, i) => i > headerIndex && l.match(/^\|\s*[-:]+\s*\|/)
-      );
-      if (sepIndex !== -1) {
-        lines.splice(sepIndex + 1, 0, tableRow);
-      } else {
-        lines.splice(headerIndex + 3, 0, tableRow);
-      }
-      content = lines.join("\n");
+    const statusIcon = this.getStatusIcon(status);
+    const header = "## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447";
+    const listItem = `- ${statusIcon} [[${taskFile.basename}]] | ${status} | ${deadline}`;
+    if (content.includes(header)) {
+      content = content.replace(header, `${header}
+${listItem}`);
     } else {
       const logHeader = "## \u041B\u043E\u0433 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439";
-      const tableFull = `
-${tableHeader}
-| \u0417\u0430\u0434\u0430\u0447\u0430 | \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A |
-| --- | --- | --- | --- |
-${tableRow}
+      const section = `
+${header}
+${listItem}
 `;
       if (content.includes(logHeader)) {
-        content = content.replace(logHeader, `${tableFull}${logHeader}`);
+        content = content.replace(logHeader, `${section}${logHeader}`);
       } else {
-        content += tableFull;
+        content += section;
       }
     }
     await this.app.vault.modify(parentFile, content);
+  }
+  getStatusIcon(status) {
+    const s = status.toLowerCase();
+    if (s.includes("\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D") || s.includes("\u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043E") || s === "done" || s === "completed")
+      return "\u2705";
+    if (s.includes("\u0432 \u0440\u0430\u0431\u043E\u0442\u0435") || s.includes("\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435") || s === "active" || s === "in progress")
+      return "\u{1F504}";
+    return "\u2B1C";
   }
 };
 
@@ -1719,7 +1717,9 @@ var NamingModal = class extends import_obsidian7.Modal {
     input.onChange((value) => this.name = value);
     input.inputEl.style.width = "100%";
     input.inputEl.style.marginBottom = "20px";
-    input.inputEl.focus();
+    requestAnimationFrame(() => {
+      input.inputEl.focus();
+    });
     const btnContainer = contentEl.createDiv({ cls: "modal-button-container" });
     new import_obsidian7.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => this.submit());
     input.inputEl.addEventListener("keydown", (e) => {
@@ -2254,8 +2254,10 @@ var NewTaskModal = class extends import_obsidian8.Modal {
     const input = new import_obsidian8.TextComponent(contentEl);
     input.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
-    input.inputEl.focus();
     input.onChange((val) => this.taskName = val);
+    requestAnimationFrame(() => {
+      input.inputEl.focus();
+    });
     new import_obsidian8.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
       if (this.taskName) {
         this.onSubmit(this.taskName);

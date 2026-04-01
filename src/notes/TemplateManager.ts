@@ -78,8 +78,7 @@ ${summary}
 
 ---
 ## 📋 Список подзадач
-| Задача | Описание | Статус | Срок |
-| --- | --- | --- | --- |
+⬜ [[Шаблон]] | Статус | Срок
 
 ## Лог сообщений
 
@@ -227,6 +226,9 @@ cssclasses: [hide-properties]
 ## 📝 Текст заметки
 Начните писать здесь...
 
+## 📋 Список подзадач
+⬜ [[Шаблон]] | Статус | Срок
+
 `;
         return vault.create(fileName, content);
     }
@@ -248,39 +250,31 @@ cssclasses: [hide-properties]
         
         const status = cache?.frontmatter?.['status'] || 'To Do';
         const deadline = cache?.frontmatter?.['deadline'] || 'Не задано';
-        // For description, we could try to extract it, but for a new task it's empty
-        const description = "Новая подзадача"; 
 
-        const tableHeader = "## 📋 Список подзадач";
-        const tableRow = `| [[${taskFile.basename}]] | ${description} | ${status} | ${deadline} |\n`;
-        
-        if (content.includes(tableHeader)) {
-            const lines = content.split('\n');
-            const headerIndex = lines.findIndex(l => l.includes(tableHeader));
-            
-            // Find separator row: | --- | --- | --- | --- |
-            const sepIndex = lines.findIndex((l, i) => 
-                i > headerIndex && l.match(/^\|\s*[-:]+\s*\|/)
-            );
-            
-            if (sepIndex !== -1) {
-                lines.splice(sepIndex + 1, 0, tableRow);
-            } else {
-                lines.splice(headerIndex + 3, 0, tableRow);
-            }
-            content = lines.join('\n');
+        const statusIcon = this.getStatusIcon(status);
+        const header = "## 📋 Список подзадач";
+        const listItem = `- ${statusIcon} [[${taskFile.basename}]] | ${status} | ${deadline}`;
+
+        if (content.includes(header)) {
+            content = content.replace(header, `${header}\n${listItem}`);
         } else {
-            // Create new table at a logical place (before Log entries or at the end)
             const logHeader = "## Лог сообщений";
-            const tableFull = `\n${tableHeader}\n| Задача | Описание | Статус | Срок |\n| --- | --- | --- | --- |\n${tableRow}\n`;
+            const section = `\n${header}\n${listItem}\n`;
             
             if (content.includes(logHeader)) {
-                content = content.replace(logHeader, `${tableFull}${logHeader}`);
+                content = content.replace(logHeader, `${section}${logHeader}`);
             } else {
-                content += tableFull;
+                content += section;
             }
         }
 
         await this.app.vault.modify(parentFile, content);
+    }
+
+    private getStatusIcon(status: string): string {
+        const s = status.toLowerCase();
+        if (s.includes('завершен') || s.includes('выполнено') || s === 'done' || s === 'completed') return '✅';
+        if (s.includes('в работе') || s.includes('процессе') || s === 'active' || s === 'in progress') return '🔄';
+        return '⬜';
     }
 }
