@@ -404,6 +404,10 @@ cssclasses: [hide-properties]
 ${summary}
 
 ---
+## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447
+| \u0417\u0430\u0434\u0430\u0447\u0430 | \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A |
+| --- | --- | --- | --- |
+
 ## \u041B\u043E\u0433 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439
 
 **\u041E\u0442 \u043A\u043E\u0433\u043E:** ${email.sender}
@@ -510,6 +514,10 @@ cssclasses: [hide-properties]
 - [ ] \u0422\u0435\u0441\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435
 - [ ] \u0417\u0430\u043F\u0443\u0441\u043A
 
+## \u{1F4CB} \u0421\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0434\u0437\u0430\u0434\u0430\u0447
+| \u0417\u0430\u0434\u0430\u0447\u0430 | \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 | \u0421\u0442\u0430\u0442\u0443\u0441 | \u0421\u0440\u043E\u043A |
+| --- | --- | --- | --- |
+
 `;
     return vault.create(fileName, content);
   }
@@ -559,7 +567,14 @@ cssclasses: [hide-properties]
     if (content.includes(tableHeader)) {
       const lines = content.split("\n");
       const headerIndex = lines.findIndex((l) => l.includes(tableHeader));
-      lines.splice(headerIndex + 3, 0, tableRow);
+      const sepIndex = lines.findIndex(
+        (l, i) => i > headerIndex && l.match(/^\|\s*[-:]+\s*\|/)
+      );
+      if (sepIndex !== -1) {
+        lines.splice(sepIndex + 1, 0, tableRow);
+      } else {
+        lines.splice(headerIndex + 3, 0, tableRow);
+      }
       content = lines.join("\n");
     } else {
       const logHeader = "## \u041B\u043E\u0433 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439";

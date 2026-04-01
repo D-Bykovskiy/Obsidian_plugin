@@ -77,6 +77,10 @@ cssclasses: [hide-properties]
 ${summary}
 
 ---
+## 📋 Список подзадач
+| Задача | Описание | Статус | Срок |
+| --- | --- | --- | --- |
+
 ## Лог сообщений
 
 **От кого:** ${email.sender}
@@ -192,6 +196,10 @@ cssclasses: [hide-properties]
 - [ ] Тестирование
 - [ ] Запуск
 
+## 📋 Список подзадач
+| Задача | Описание | Статус | Срок |
+| --- | --- | --- | --- |
+
 `;
         return vault.create(fileName, content);
     }
@@ -247,12 +255,19 @@ cssclasses: [hide-properties]
         const tableRow = `| [[${taskFile.basename}]] | ${description} | ${status} | ${deadline} |\n`;
         
         if (content.includes(tableHeader)) {
-            // Find the table and append to it
             const lines = content.split('\n');
             const headerIndex = lines.findIndex(l => l.includes(tableHeader));
             
-            // Look for the end of the table or just insert after header/separator
-            lines.splice(headerIndex + 3, 0, tableRow);
+            // Find separator row: | --- | --- | --- | --- |
+            const sepIndex = lines.findIndex((l, i) => 
+                i > headerIndex && l.match(/^\|\s*[-:]+\s*\|/)
+            );
+            
+            if (sepIndex !== -1) {
+                lines.splice(sepIndex + 1, 0, tableRow);
+            } else {
+                lines.splice(headerIndex + 3, 0, tableRow);
+            }
             content = lines.join('\n');
         } else {
             // Create new table at a logical place (before Log entries or at the end)
