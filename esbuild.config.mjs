@@ -14,8 +14,9 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === "production");
 
-// Тестовое хранилище (укажите ваш путь)
-const targetDir = "C:\\Users\\talyu\\Desktop\\Obsidian_OMIS\\.obsidian\\plugins\\Plagin-omis";
+// Тестовое хранилище
+const vaultPath = "C:\\Users\\talyu\\Desktop\\Obsidian_OMIS";
+const targetDir = `${vaultPath}\\.obsidian\\plugins\\monitoring-plugin`;
 
 const copyPluginFiles = {
     name: 'copy-plugin-files',
@@ -50,6 +51,7 @@ const copyPluginFiles = {
             }
 
             console.log(`[ESBuild] Файлы плагина скопированы в: ${targetDir}`);
+            console.log(`[ESBuild] Перезагрузите плагин: Settings → Community Plugins → выключить/включить Monitoring Plugin`);
         });
     },
 };
