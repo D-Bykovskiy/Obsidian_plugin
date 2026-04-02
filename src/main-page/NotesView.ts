@@ -22,7 +22,13 @@ export class NotesView extends BaseView {
         this.notes.forEach(note => {
             const card = grid.createDiv({ cls: 'monitoring-note-card' });
             card.createDiv({ cls: 'note-card-title', text: note.name });
-            card.createDiv({ cls: 'note-card-date', text: 'Создана: ' + (note.created || '---') });
+            
+            const meta = card.createDiv({ cls: 'note-card-meta' });
+            meta.createSpan({ text: 'Создана: ' + (note.created || '---') });
+            
+            if (note.author) {
+                meta.createSpan({ text: ' | Автор: ' + note.author });
+            }
             
             const tagsCont = card.createDiv({ cls: 'note-card-tags' });
             note.tags.filter(t => t !== 'note').forEach(tag => {

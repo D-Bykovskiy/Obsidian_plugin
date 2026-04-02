@@ -3,6 +3,7 @@ import { LLMService } from './llm/LLMService';
 import { OutlookService } from './outlook/OutlookService';
 import { TemplateManager } from './notes/TemplateManager';
 import { DailyService } from './daily/DailyService';
+import { TeamService } from './team/TeamService';
 import { MonitoringSettingTab, DEFAULT_SETTINGS, MonitoringPluginSettings } from './settings/SettingsTab';
 import { ChatView, CHAT_VIEW_TYPE } from './chat/ChatView';
 import { MainPageView, MAIN_PAGE_VIEW_TYPE } from './main-page/MainPageView';
@@ -266,13 +267,23 @@ class MonitoringDurationChild extends MarkdownRenderChild {
             if (!isSimpleNote) {
                 const row1 = panelContainer.createDiv({ cls: 'monitoring-split-row' });
                 
-                const dContainer = row1.createDiv({ cls: 'monitoring-half-row' });
+                const dContainer = row1.createDiv({ cls: 'monitoring-third-row' });
                 dContainer.createEl('button', {
                     cls: 'monitoring-glass-btn monitoring-btn-full',
                     text: currentDeadline ? `⏳ ${currentDeadline}` : '📅 Срок'
                 }).onclick = () => renderExpanded();
 
-                const pContainer = row1.createDiv({ cls: 'monitoring-half-row' });
+                const respContainer = row1.createDiv({ cls: 'monitoring-third-row' });
+                const currentResponsible = cache?.frontmatter?.['responsible'] || this.plugin.settings.currentUser || '';
+                const respBtn = respContainer.createEl('button', {
+                    cls: 'monitoring-glass-btn monitoring-btn-full',
+                    text: currentResponsible ? `👤 ${currentResponsible}` : '👤 Ответственный'
+                });
+                respBtn.onclick = () => new ResponsibleButtonModal(this.plugin.app, this.file, async (name) => {
+                    await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['responsible'] = name; });
+                }).open();
+
+                const pContainer = row1.createDiv({ cls: 'monitoring-third-row' });
                 let isPExp = false;
                 const renderPUI = () => {
                     pContainer.empty();
@@ -305,6 +316,25 @@ class MonitoringDurationChild extends MarkdownRenderChild {
                         }
                     };
                 });
+            } else {
+                const row1 = panelContainer.createDiv({ cls: 'monitoring-split-row' });
+                
+                const dateContainer = row1.createDiv({ cls: 'monitoring-half-row' });
+                const createdDate = cache?.frontmatter?.['created'] || '';
+                dateContainer.createEl('button', {
+                    cls: 'monitoring-glass-btn monitoring-btn-full',
+                    text: createdDate ? `📅 ${createdDate}` : '📅 Дата'
+                }).onclick = () => {};
+
+                const authorContainer = row1.createDiv({ cls: 'monitoring-half-row' });
+                const currentAuthor = cache?.frontmatter?.['author'] || this.plugin.settings.currentUser || '';
+                const authorBtn = authorContainer.createEl('button', {
+                    cls: 'monitoring-glass-btn monitoring-btn-full',
+                    text: currentAuthor ? `✍️ ${currentAuthor}` : '✍️ Автор'
+                });
+                authorBtn.onclick = () => new ResponsibleButtonModal(this.plugin.app, this.file, async (name) => {
+                    await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['author'] = name; });
+                }).open();
             }
 
             const toolsRow = panelContainer.createDiv({ cls: 'monitoring-tools-row' });
@@ -464,4 +494,143 @@ class NewTaskModal extends Modal {
         new ButtonComponent(contentEl.createDiv({ cls: 'modal-button-container' })).setButtonText("Создать").setCta().onClick(() => { if (this.taskName) { this.onSubmit(this.taskName); this.close(); } });
     }
     onClose() { this.contentEl.empty(); }
+}
+
+class ResponsibleButtonModal extends Modal {
+    private file: TFile;
+    private onSave: (name: string) => void;
+    private teamService: TeamService;
+    private teamMembers: string[] = [];
+    private currentUser: string = '';
+
+    constructor(app: any, file: TFile, onSave: (name: string) => void) {
+        super(app);
+        this.file = file;
+        this.onSave = onSave;
+        this.teamService = new TeamService(app);
+    }
+
+    async onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl('h3', { text: 'Выбрать ответственного' });
+
+        this.teamMembers = await this.teamService.getTeamMembers();
+        const cache = this.app.metadataCache.getFileCache(this.file);
+        this.currentUser = this.settings.currentUser || '';
+        
+        const allMembers = [...this.teamMembers];
+        if (this.currentUser && !allMembers.includes(this.currentUser)) {
+            allMembers.push(this.currentUser);
+        }
+
+        const selectContainer = contentEl.createDiv();
+        selectContainer.style.marginBottom = '20px';
+        const select = selectContainer.createEl('select');
+        select.style.width = '100%';
+        select.style.padding = '8px';
+
+        const currentValue = cache?.frontmatter?.['responsible'] || cache?.frontmatter?.['author'] || '';
+
+        const emptyOption = select.createEl('option');
+        emptyOption.text = 'Не назначен';
+        emptyOption.value = '';
+        if (!currentValue) emptyOption.selected = true;
+
+        allMembers.forEach(member => {
+            const option = select.createEl('option');
+            option.text = member;
+            option.value = member;
+            if (currentValue === member) option.selected = true;
+        });
+
+        if (currentValue && !allMembers.includes(currentValue)) {
+            const customOption = select.createEl('option');
+            customOption.text = currentValue + ' (текущий)';
+            customOption.value = currentValue;
+            customOption.selected = true;
+        }
+
+        const customContainer = contentEl.createDiv();
+        customContainer.style.marginBottom = '20px';
+        const span = customContainer.createEl('span');
+        span.textContent = 'Или введите новое имя:';
+        span.style.display = 'block';
+        span.style.marginBottom = '8px';
+        
+        const input = new TextComponent(customContainer);
+        input.setPlaceholder('Новое имя');
+        input.inputEl.style.width = '100%';
+
+        const addTeamBtn = new ButtonComponent(contentEl)
+            .setButtonText('+ Добавить в команду')
+            .setClass('mod-small')
+            .onClick(async () => {
+                const newName = input.inputEl.value.trim();
+                if (newName) {
+                    await this.addToTeam(newName);
+                    this.close();
+                }
+            });
+
+        const btnContainer = contentEl.createDiv();
+        btnContainer.style.display = 'flex';
+        btnContainer.style.gap = '10px';
+        btnContainer.style.marginTop = '16px';
+        
+        new ButtonComponent(btnContainer)
+            .setButtonText('Сохранить')
+            .setCta()
+            .onClick(() => {
+                const value = input.inputEl.value.trim() || select.value;
+                this.onSave(value);
+                this.close();
+            });
+
+        new ButtonComponent(btnContainer)
+            .setButtonText('Отмена')
+            .onClick(() => this.close());
+    }
+
+    private async addToTeam(name: string): Promise<void> {
+        const routinesFile = this.app.vault.getAbstractFileByPath('routines.md');
+        if (!routinesFile || !(routinesFile instanceof TFile)) {
+            const content = `# Команда\n- ${name}\n`;
+            await this.app.vault.create('routines.md', content);
+        } else {
+            const content = await this.app.vault.read(routinesFile);
+            if (!content.includes('# Команда') && !content.includes('# команда')) {
+                const newContent = content + '\n# Команда\n- ' + name + '\n';
+                await this.app.vault.modify(routinesFile, newContent);
+            } else if (!content.includes('- ' + name)) {
+                const lines = content.split('\n');
+                let inTeamSection = false;
+                const newLines: string[] = [];
+                
+                for (const line of lines) {
+                    if (line.trim().toLowerCase() === '# команда') {
+                        inTeamSection = true;
+                    }
+                    if (inTeamSection && (line.startsWith('# ') || line.startsWith('## '))) {
+                        newLines.push(line);
+                        newLines.push('- ' + name);
+                        inTeamSection = false;
+                        continue;
+                    }
+                    newLines.push(line);
+                }
+                
+                if (inTeamSection) {
+                    newLines.push('- ' + name);
+                }
+                
+                await this.app.vault.modify(routinesFile, newLines.join('\n'));
+            }
+        }
+        
+        this.onSave(name);
+    }
+
+    private get settings(): MonitoringPluginSettings {
+        return (this.app as any).plugins.plugins['monitoring-plugin']?.settings || DEFAULT_SETTINGS;
+    }
 }

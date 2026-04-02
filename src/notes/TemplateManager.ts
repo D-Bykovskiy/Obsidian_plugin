@@ -142,6 +142,7 @@ created: ${dateStr}
 deadline: ${dateStr} 10:00
 linked_project: "${linkedProject}"
 tags: ${tagsStr}
+responsible: "${this.settings.currentUser}"
 cssclasses: [hide-properties]
 ---
 
@@ -178,6 +179,7 @@ target_date:
 owner: "${this.app.vault.getName()}"
 goal: ""
 tags: [project]
+responsible: "${this.settings.currentUser}"
 cssclasses: [hide-properties]
 ---
 
@@ -214,6 +216,7 @@ cssclasses: [hide-properties]
         const content = `---
 type: note
 created: ${dateStr}
+author: "${this.settings.currentUser}"
 tags: [note]
 cssclasses: [hide-properties]
 ---

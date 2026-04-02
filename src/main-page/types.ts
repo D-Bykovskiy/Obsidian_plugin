@@ -9,6 +9,7 @@ export interface TaskData {
     priority: number;
     tags: string[];
     linkedProject?: string;
+    responsible?: string;
 }
 
 export interface ProjectData {
@@ -20,6 +21,7 @@ export interface ProjectData {
     priority?: number;
     started?: string;
     target_date?: string;
+    responsible?: string;
 }
 
 export interface IncidentData {
@@ -37,6 +39,7 @@ export interface SimpleNoteData {
     path: string;
     created: string;
     tags: string[];
+    author?: string;
 }
 
 export interface VaultData {

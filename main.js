@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => MonitoringPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/llm/LLMService.ts
 var import_obsidian = require("obsidian");
@@ -463,6 +463,7 @@ created: ${dateStr}
 deadline: ${dateStr} 10:00
 linked_project: "${linkedProject}"
 tags: ${tagsStr}
+responsible: "${this.settings.currentUser}"
 cssclasses: [hide-properties]
 ---
 
@@ -496,6 +497,7 @@ target_date:
 owner: "${this.app.vault.getName()}"
 goal: ""
 tags: [project]
+responsible: "${this.settings.currentUser}"
 cssclasses: [hide-properties]
 ---
 
@@ -529,6 +531,7 @@ cssclasses: [hide-properties]
     const content = `---
 type: note
 created: ${dateStr}
+author: "${this.settings.currentUser}"
 tags: [note]
 cssclasses: [hide-properties]
 ---
@@ -852,8 +855,52 @@ ${tasksList}
   }
 };
 
-// src/settings/SettingsTab.ts
+// src/team/TeamService.ts
 var import_obsidian3 = require("obsidian");
+var TeamService = class {
+  constructor(app) {
+    this.app = app;
+  }
+  async getTeamMembers() {
+    const routinesFile = this.app.vault.getAbstractFileByPath("routines.md");
+    if (!routinesFile || !(routinesFile instanceof import_obsidian3.TFile)) {
+      return [];
+    }
+    try {
+      const content = await this.app.vault.read(routinesFile);
+      return this.parseTeamFromContent(content);
+    } catch (e) {
+      console.error("Error reading routines.md:", e);
+      return [];
+    }
+  }
+  parseTeamFromContent(content) {
+    const members = [];
+    let inTeamSection = false;
+    const lines = content.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.toLowerCase() === "# \u043A\u043E\u043C\u0430\u043D\u0434\u0430" || trimmed.toLowerCase() === "# team") {
+        inTeamSection = true;
+        continue;
+      }
+      if (inTeamSection) {
+        if (trimmed.startsWith("# ") || trimmed.startsWith("## ")) {
+          inTeamSection = false;
+          continue;
+        }
+        const match = trimmed.match(/^[-*]\s*(.+)$/);
+        if (match && match[1].trim()) {
+          members.push(match[1].trim());
+        }
+      }
+    }
+    return members;
+  }
+};
+
+// src/settings/SettingsTab.ts
+var import_obsidian4 = require("obsidian");
 var DEFAULT_SETTINGS = {
   llmApiKey: "",
   llmBaseUrl: "https://api.ai.beeline.ru/api/v3",
@@ -868,9 +915,10 @@ var DEFAULT_SETTINGS = {
   chatTemperature: 0.7,
   incidentsFolder: "mail",
   simpleNotesFolder: "notes",
-  savedFilters: []
+  savedFilters: [],
+  currentUser: ""
 };
-var MonitoringSettingTab = class extends import_obsidian3.PluginSettingTab {
+var MonitoringSettingTab = class extends import_obsidian4.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -879,11 +927,11 @@ var MonitoringSettingTab = class extends import_obsidian3.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Monitoring Plugin Settings" });
-    new import_obsidian3.Setting(containerEl).setName("LLM Base URL").setDesc("Base URL for the Corporate LLM API (OpenAI Compatible)").addText((text) => text.setPlaceholder("https://api.ai.beeline.ru/api/v3").setValue(this.plugin.settings.llmBaseUrl).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("LLM Base URL").setDesc("Base URL for the Corporate LLM API (OpenAI Compatible)").addText((text) => text.setPlaceholder("https://api.ai.beeline.ru/api/v3").setValue(this.plugin.settings.llmBaseUrl).onChange(async (value) => {
       this.plugin.settings.llmBaseUrl = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("LLM API Key").setDesc("Bearer token for the corporate LLM API").addText((text) => {
+    new import_obsidian4.Setting(containerEl).setName("LLM API Key").setDesc("Bearer token for the corporate LLM API").addText((text) => {
       text.setPlaceholder("Enter your API Key").setValue(this.plugin.settings.llmApiKey).onChange(async (value) => {
         this.plugin.settings.llmApiKey = value;
         await this.plugin.saveSettings();
@@ -891,48 +939,53 @@ var MonitoringSettingTab = class extends import_obsidian3.PluginSettingTab {
       text.inputEl.type = "password";
       return text;
     });
-    new import_obsidian3.Setting(containerEl).setName("LLM Model").setDesc("Model name to use for summarization").addText((text) => text.setPlaceholder("llm-medium-moe-instruct").setValue(this.plugin.settings.llmModel).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("LLM Model").setDesc("Model name to use for summarization").addText((text) => text.setPlaceholder("llm-medium-moe-instruct").setValue(this.plugin.settings.llmModel).onChange(async (value) => {
       this.plugin.settings.llmModel = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h3", { text: "AI Chat Settings" });
-    new import_obsidian3.Setting(containerEl).setName("System Prompt").setDesc("System prompt given to the AI for chat conversations.").addTextArea((text) => text.setPlaceholder("Enter system prompt...").setValue(this.plugin.settings.chatSystemPrompt).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("System Prompt").setDesc("System prompt given to the AI for chat conversations.").addTextArea((text) => text.setPlaceholder("Enter system prompt...").setValue(this.plugin.settings.chatSystemPrompt).onChange(async (value) => {
       this.plugin.settings.chatSystemPrompt = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Temperature").setDesc("Variability of AI responses (0.0 to 1.0)").addSlider((slider) => slider.setLimits(0, 1, 0.1).setValue(this.plugin.settings.chatTemperature).setDynamicTooltip().onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Temperature").setDesc("Variability of AI responses (0.0 to 1.0)").addSlider((slider) => slider.setLimits(0, 1, 0.1).setValue(this.plugin.settings.chatTemperature).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.chatTemperature = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h3", { text: "Outlook Integration" });
-    new import_obsidian3.Setting(containerEl).setName("Outlook Folder Name").setDesc("The folder to check for new incident emails (e.g. Inbox, Alerts)").addText((text) => text.setPlaceholder("Inbox").setValue(this.plugin.settings.mailFolder).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Outlook Folder Name").setDesc("The folder to check for new incident emails (e.g. Inbox, Alerts)").addText((text) => text.setPlaceholder("Inbox").setValue(this.plugin.settings.mailFolder).onChange(async (value) => {
       this.plugin.settings.mailFolder = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Dashboard Note Name").setDesc("Name of the note containing tracked subjects (e.g. Dashboard.md)").addText((text) => text.setPlaceholder("Dashboard.md").setValue(this.plugin.settings.dashboardNoteName).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Dashboard Note Name").setDesc("Name of the note containing tracked subjects (e.g. Dashboard.md)").addText((text) => text.setPlaceholder("Dashboard.md").setValue(this.plugin.settings.dashboardNoteName).onChange(async (value) => {
       this.plugin.settings.dashboardNoteName = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Clear Scanned Emails Cache").setDesc("Reset the list of already processed emails so they can be scanned again.").addButton((button) => button.setButtonText("Clear Cache").onClick(async () => {
+    new import_obsidian4.Setting(containerEl).setName("Clear Scanned Emails Cache").setDesc("Reset the list of already processed emails so they can be scanned again.").addButton((button) => button.setButtonText("Clear Cache").onClick(async () => {
       this.plugin.settings.scannedEmailIds = [];
       await this.plugin.saveSettings();
-      new import_obsidian3.Notice("Scanned emails cache cleared!");
+      new import_obsidian4.Notice("Scanned emails cache cleared!");
     }));
     containerEl.createEl("h3", { text: "Notes settings" });
-    new import_obsidian3.Setting(containerEl).setName("Incidents Folder").setDesc("Folder where new incident notes will be created. Leave empty to use vault root.").addText((text) => text.setPlaceholder("mail").setValue(this.plugin.settings.incidentsFolder).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Incidents Folder").setDesc("Folder where new incident notes will be created. Leave empty to use vault root.").addText((text) => text.setPlaceholder("mail").setValue(this.plugin.settings.incidentsFolder).onChange(async (value) => {
       this.plugin.settings.incidentsFolder = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Simple Notes Folder").setDesc("Folder where simple notes will be created and displayed on the dashboard.").addText((text) => text.setPlaceholder("notes").setValue(this.plugin.settings.simpleNotesFolder).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Simple Notes Folder").setDesc("Folder where simple notes will be created and displayed on the dashboard.").addText((text) => text.setPlaceholder("notes").setValue(this.plugin.settings.simpleNotesFolder).onChange(async (value) => {
       this.plugin.settings.simpleNotesFolder = value;
       await this.plugin.saveSettings();
     }));
+    containerEl.createEl("h3", { text: "\u041A\u043E\u043C\u0430\u043D\u0434\u0430" });
+    new import_obsidian4.Setting(containerEl).setName("\u0412\u0430\u0448\u0435 \u0438\u043C\u044F").setDesc('\u0412\u0430\u0448\u0435 \u0438\u043C\u044F \u0434\u043B\u044F \u0444\u0438\u043B\u044C\u0442\u0440\u0430\u0446\u0438\u0438 \u0437\u0430\u0434\u0430\u0447 (\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0432 "\u041C\u043E\u0438 \u0437\u0430\u0434\u0430\u0447\u0438")').addText((text) => text.setPlaceholder("\u0412\u0430\u0448\u0435 \u0438\u043C\u044F").setValue(this.plugin.settings.currentUser).onChange(async (value) => {
+      this.plugin.settings.currentUser = value;
+      await this.plugin.saveSettings();
+    }));
     containerEl.createEl("h3", { text: "Development / Testing" });
-    new import_obsidian3.Setting(containerEl).setName("Use Mock Email Data").setDesc("Inject fake Outlook emails for local testing without Outlook installed.").addToggle((toggle) => toggle.setValue(this.plugin.settings.useMockData).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Use Mock Email Data").setDesc("Inject fake Outlook emails for local testing without Outlook installed.").addToggle((toggle) => toggle.setValue(this.plugin.settings.useMockData).onChange(async (value) => {
       this.plugin.settings.useMockData = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Use Mock LLM").setDesc("Return dummy text instead of calling the corporate LLM.").addToggle((toggle) => toggle.setValue(this.plugin.settings.useMockLLM).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Use Mock LLM").setDesc("Return dummy text instead of calling the corporate LLM.").addToggle((toggle) => toggle.setValue(this.plugin.settings.useMockLLM).onChange(async (value) => {
       this.plugin.settings.useMockLLM = value;
       await this.plugin.saveSettings();
     }));
@@ -940,9 +993,9 @@ var MonitoringSettingTab = class extends import_obsidian3.PluginSettingTab {
 };
 
 // src/chat/ChatView.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var CHAT_VIEW_TYPE = "monitoring-chat-view";
-var ChatView = class extends import_obsidian4.ItemView {
+var ChatView = class extends import_obsidian5.ItemView {
   constructor(leaf, llmService) {
     super(leaf);
     this.messages = [];
@@ -981,7 +1034,7 @@ var ChatView = class extends import_obsidian4.ItemView {
       }
     });
     const sendBtn = inputArea.createEl("button", { cls: "chat-send-btn" });
-    (0, import_obsidian4.setIcon)(sendBtn, "send");
+    (0, import_obsidian5.setIcon)(sendBtn, "send");
     sendBtn.onclick = () => this.sendMessage();
     this.renderMessages();
   }
@@ -1002,7 +1055,7 @@ var ChatView = class extends import_obsidian4.ItemView {
       this.renderMessages();
     } catch (error) {
       typingEl.remove();
-      new import_obsidian4.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F: " + error.message);
+      new import_obsidian5.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F: " + error.message);
       console.error(error);
     }
   }
@@ -1016,14 +1069,14 @@ var ChatView = class extends import_obsidian4.ItemView {
     this.messages.forEach((msg) => {
       const msgEl = this.messageContainer.createDiv(`chat-message ${msg.role}`);
       const copyBtn = msgEl.createDiv("chat-message-copy-btn");
-      (0, import_obsidian4.setIcon)(copyBtn, "copy");
+      (0, import_obsidian5.setIcon)(copyBtn, "copy");
       copyBtn.onclick = () => {
         navigator.clipboard.writeText(msg.content);
-        new import_obsidian4.Notice("\u0422\u0435\u043A\u0441\u0442 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D \u0432 \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430");
+        new import_obsidian5.Notice("\u0422\u0435\u043A\u0441\u0442 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D \u0432 \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430");
       };
       const contentEl = msgEl.createDiv("chat-message-content");
       if (msg.role === "assistant") {
-        import_obsidian4.MarkdownRenderer.renderMarkdown(msg.content, contentEl, "", this);
+        import_obsidian5.MarkdownRenderer.renderMarkdown(msg.content, contentEl, "", this);
       } else {
         contentEl.setText(msg.content);
       }
@@ -1038,10 +1091,10 @@ var ChatView = class extends import_obsidian4.ItemView {
 };
 
 // src/main-page/MainPageView.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/main-page/DataService.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var DataService = class {
   constructor(app, incidentsFolder, simpleNotesFolder = "notes") {
     this.app = app;
@@ -1115,7 +1168,7 @@ var DataService = class {
     };
   }
   parseTask(file, cache, basename, tags, linkedProject) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     return {
       id: basename,
       name: basename.replace(/^Task-/, ""),
@@ -1124,11 +1177,12 @@ var DataService = class {
       path: file.path,
       priority: ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["priority"]) || 3,
       tags,
-      linkedProject
+      linkedProject,
+      responsible: ((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["responsible"]) || void 0
     };
   }
   parseProject(file, cache, basename) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     return {
       id: basename,
       name: basename.replace(/^Project-/, ""),
@@ -1136,22 +1190,24 @@ var DataService = class {
       path: file.path,
       goal: ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["goal"]) || "",
       priority: (_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["priority"],
-      target_date: (_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["target_date"]
+      target_date: (_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["target_date"],
+      responsible: ((_e = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _e["responsible"]) || void 0
     };
   }
   parseNote(file, cache, basename, tags) {
-    var _a;
+    var _a, _b;
     return {
       id: basename,
       name: basename,
       path: file.path,
       created: ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["created"]) || "",
-      tags
+      tags,
+      author: ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["author"]) || void 0
     };
   }
   async updateItemStatus(path2, newStatus) {
     const file = this.app.vault.getAbstractFileByPath(path2);
-    if (file instanceof import_obsidian5.TFile) {
+    if (file instanceof import_obsidian6.TFile) {
       await this.app.fileManager.processFrontMatter(file, (fm) => {
         fm["status"] = newStatus;
       });
@@ -1170,10 +1226,10 @@ var DataService = class {
 };
 
 // src/main-page/DashboardView.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/main-page/BaseView.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var BaseView = class {
   constructor(app) {
     this.app = app;
@@ -1190,7 +1246,7 @@ var BaseView = class {
   }
   openFile(path2) {
     const file = this.app.vault.getAbstractFileByPath(path2);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian7.TFile) {
       this.app.workspace.getLeaf(false).openFile(file);
     }
   }
@@ -1387,7 +1443,7 @@ var DashboardView = class extends BaseView {
     }).open();
   }
 };
-var FilterModal = class extends import_obsidian7.Modal {
+var FilterModal = class extends import_obsidian8.Modal {
   constructor(app, projects, savedFilters, onSave) {
     super(app);
     this.currentName = "";
@@ -1405,7 +1461,7 @@ var FilterModal = class extends import_obsidian7.Modal {
     contentEl.createEl("hr");
     contentEl.createEl("h4", { text: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u0444\u0438\u043B\u044C\u0442\u0440" });
     const form = contentEl.createDiv({ cls: "filter-creation-form" });
-    const nameInput = new import_obsidian7.TextComponent(form);
+    const nameInput = new import_obsidian8.TextComponent(form);
     nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0444\u0438\u043B\u044C\u0442\u0440\u0430");
     nameInput.inputEl.style.width = "100%";
     nameInput.inputEl.style.marginBottom = "10px";
@@ -1413,10 +1469,10 @@ var FilterModal = class extends import_obsidian7.Modal {
     const tagsPreview = form.createDiv({ cls: "active-filters-container", attr: { style: "min-height: 20px; margin-bottom: 10px;" } });
     this.renderTagsPreview(tagsPreview);
     const tagControls = form.createDiv({ attr: { style: "display: flex; gap: 8px; margin-bottom: 10px;" } });
-    const tagInput = new import_obsidian7.TextComponent(tagControls);
+    const tagInput = new import_obsidian8.TextComponent(tagControls);
     tagInput.setPlaceholder("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0442\u0435\u0433...");
     tagInput.onChange((v) => this.newTag = v);
-    new import_obsidian7.ButtonComponent(tagControls).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").onClick(() => {
+    new import_obsidian8.ButtonComponent(tagControls).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").onClick(() => {
       if (this.newTag) {
         const t = this.newTag.trim().replace(/^#/, "");
         if (!this.currentTags.includes(t)) {
@@ -1427,9 +1483,9 @@ var FilterModal = class extends import_obsidian7.Modal {
         tagInput.setValue("");
       }
     });
-    new import_obsidian7.ButtonComponent(form).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440 \u0432 \u0441\u043F\u0438\u0441\u043E\u043A").onClick(() => {
+    new import_obsidian8.ButtonComponent(form).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440 \u0432 \u0441\u043F\u0438\u0441\u043E\u043A").onClick(() => {
       if (!this.currentName || this.currentTags.length === 0) {
-        new import_obsidian7.Notice("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0438 \u0445\u043E\u0442\u044F \u0431\u044B \u043E\u0434\u0438\u043D \u0442\u0435\u0433");
+        new import_obsidian8.Notice("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0438 \u0445\u043E\u0442\u044F \u0431\u044B \u043E\u0434\u0438\u043D \u0442\u0435\u0433");
         return;
       }
       this.editingFilters.unshift({ name: this.currentName, tags: [...this.currentTags] });
@@ -1440,8 +1496,8 @@ var FilterModal = class extends import_obsidian7.Modal {
       this.renderList(listContainer);
     }).buttonEl.style.width = "100%";
     const footer = contentEl.createDiv({ cls: "modal-button-container", attr: { style: "display: flex; justify-content: flex-end; gap: 10px; margin-top: 30px;" } });
-    new import_obsidian7.ButtonComponent(footer).setButtonText("\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C").setCta().onClick(() => this.close());
-    new import_obsidian7.ButtonComponent(footer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
+    new import_obsidian8.ButtonComponent(footer).setButtonText("\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C").setCta().onClick(() => this.close());
+    new import_obsidian8.ButtonComponent(footer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
   }
   renderList(container) {
     container.empty();
@@ -1475,10 +1531,12 @@ var FilterModal = class extends import_obsidian7.Modal {
 };
 
 // src/main-page/KanbanView.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 var KanbanView = class extends BaseView {
-  constructor(app, dataService, templateManager, tasks, projects, onRefresh) {
+  constructor(app, dataService, templateManager, tasks, projects, onRefresh, teamMembers = [], currentUser = "") {
     super(app);
+    this.teamMembers = [];
+    this.currentUser = "";
     this.statuses = [
       { id: "todo", label: "\u041E\u0436\u0438\u0434\u0430\u043D\u0438\u0435", color: "orange", match: ["todo", "pending", "\u043E\u0436\u0438\u0434\u0430", "\u0437\u0430\u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043E", "to do"] },
       { id: "active", label: "\u0412 \u0440\u0430\u0431\u043E\u0442\u0435", color: "blue", match: ["active", "in progress", "\u0432 \u0440\u0430\u0431\u043E\u0442\u0435", "\u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435"] },
@@ -1489,6 +1547,9 @@ var KanbanView = class extends BaseView {
     this.tasks = tasks;
     this.projects = projects;
     this.onRefresh = onRefresh;
+    this.teamService = new TeamService(app);
+    this.teamMembers = teamMembers;
+    this.currentUser = currentUser;
   }
   render(container) {
     this.renderBoard(container, "\u0414\u043E\u0441\u043A\u0430 \u041F\u0440\u043E\u0435\u043A\u0442\u043E\u0432", this.projects, "project");
@@ -1543,8 +1604,9 @@ var KanbanView = class extends BaseView {
         const data = JSON.parse(rawData);
         if (data.path && data.type === type) {
           const file = this.app.vault.getAbstractFileByPath(data.path);
-          await this.dataService.updateItemStatus(data.path, status.label);
-          if (this.templateManager && file instanceof import_obsidian8.TFile && file.basename.startsWith("Task-")) {
+          const statusValue = status.id === "todo" ? "To Do" : status.id === "active" ? "In Progress" : status.id === "done" ? "Done" : status.label;
+          await this.dataService.updateItemStatus(data.path, statusValue);
+          if (this.templateManager && file instanceof import_obsidian9.TFile && file.basename.startsWith("Task-")) {
             await this.templateManager.updateSubtaskStatusIcon(file);
           }
           await new Promise((r) => setTimeout(r, 400));
@@ -1565,11 +1627,16 @@ var KanbanView = class extends BaseView {
     }
     card.setAttribute("draggable", "true");
     card.createDiv({ cls: "card-title", text: item.name });
+    let metaText = "";
     if (type === "task") {
-      card.createDiv({ cls: "card-meta", text: `\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442: ${item.priority} | ${item.deadline || "\u0411\u0435\u0437 \u0441\u0440\u043E\u043A\u0430"}` });
+      metaText = `\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442: ${item.priority} | ${item.deadline || "\u0411\u0435\u0437 \u0441\u0440\u043E\u043A\u0430"}`;
     } else {
-      card.createDiv({ cls: "card-meta", text: item.goal || "\u0426\u0435\u043B\u044C \u043D\u0435 \u0437\u0430\u0434\u0430\u043D\u0430" });
+      metaText = item.goal || "\u0426\u0435\u043B\u044C \u043D\u0435 \u0437\u0430\u0434\u0430\u043D\u0430";
     }
+    if (item.responsible) {
+      metaText += ` | \u{1F464} ${item.responsible}`;
+    }
+    card.createDiv({ cls: "card-meta", text: metaText });
     card.addEventListener("dragstart", (e) => {
       var _a;
       (_a = e.dataTransfer) == null ? void 0 : _a.setData("text/plain", JSON.stringify({ path: item.path, type }));
@@ -1581,6 +1648,175 @@ var KanbanView = class extends BaseView {
     card.onclick = () => {
       this.openFile(item.path);
     };
+    card.oncontextmenu = (e) => {
+      e.preventDefault();
+      this.showResponsibleModal(item, type);
+    };
+  }
+  async showResponsibleModal(item, type) {
+    new ResponsibleModal(
+      this.app,
+      item,
+      type,
+      async (newResponsible) => {
+        await this.updateResponsible(item.path, newResponsible);
+        this.onRefresh();
+      },
+      this.teamMembers,
+      this.currentUser
+    ).open();
+  }
+  async updateResponsible(path2, responsible) {
+    const file = this.app.vault.getAbstractFileByPath(path2);
+    if (!file || !(file instanceof import_obsidian9.TFile))
+      return;
+    const content = await this.app.vault.read(file);
+    const lines = content.split("\n");
+    const newLines = [];
+    let inFrontmatter = false;
+    let frontmatterEnded = false;
+    for (const line of lines) {
+      if (line.trim() === "---" && !inFrontmatter) {
+        inFrontmatter = true;
+        newLines.push(line);
+        continue;
+      }
+      if (line.trim() === "---" && inFrontmatter && !frontmatterEnded) {
+        frontmatterEnded = true;
+        newLines.push(line);
+        continue;
+      }
+      if (inFrontmatter && !frontmatterEnded) {
+        if (line.match(/^responsible:/)) {
+          if (responsible) {
+            newLines.push(`responsible: "${responsible}"`);
+          }
+          continue;
+        }
+      }
+      newLines.push(line);
+    }
+    if (inFrontmatter && !frontmatterEnded) {
+      if (responsible) {
+        newLines.push(`responsible: "${responsible}"`);
+      }
+      newLines.push("---");
+    } else if (responsible) {
+      const insertIdx = newLines.findIndex((l) => l.trim() === "---");
+      if (insertIdx !== -1) {
+        newLines.splice(insertIdx + 1, 0, `responsible: "${responsible}"`);
+      }
+    }
+    await this.app.vault.modify(file, newLines.join("\n"));
+  }
+};
+var ResponsibleModal = class extends import_obsidian9.Modal {
+  constructor(app, item, type, onSave, teamMembers = [], currentUser = "") {
+    super(app);
+    this.teamMembers = [];
+    this.currentUser = "";
+    this.item = item;
+    this.type = type;
+    this.onSave = onSave;
+    this.teamMembers = teamMembers;
+    this.currentUser = currentUser;
+  }
+  async onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: `\u041E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439: ${this.item.name}` });
+    const selectContainer = contentEl.createDiv();
+    selectContainer.style.marginBottom = "20px";
+    const select = selectContainer.createEl("select");
+    select.style.width = "100%";
+    select.style.padding = "8px";
+    select.style.marginBottom = "16px";
+    const emptyOption = select.createEl("option");
+    emptyOption.text = "\u041D\u0435 \u043D\u0430\u0437\u043D\u0430\u0447\u0435\u043D";
+    emptyOption.value = "";
+    if (!this.item.responsible)
+      emptyOption.selected = true;
+    const allMembers = [...this.teamMembers];
+    if (this.currentUser && !allMembers.includes(this.currentUser)) {
+      allMembers.push(this.currentUser);
+    }
+    allMembers.forEach((member) => {
+      const option = select.createEl("option");
+      option.text = member;
+      option.value = member;
+      if (this.item.responsible === member) {
+        option.selected = true;
+      }
+    });
+    if (this.item.responsible && !this.teamMembers.includes(this.item.responsible)) {
+      const customOption = select.createEl("option");
+      customOption.text = this.item.responsible + " (\u0442\u0435\u043A\u0443\u0449\u0438\u0439)";
+      customOption.value = this.item.responsible;
+      customOption.selected = true;
+    }
+    const customContainer = contentEl.createDiv();
+    customContainer.style.marginBottom = "20px";
+    const span = customContainer.createEl("span");
+    span.textContent = "\u0418\u043B\u0438 \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u043E\u0432\u043E\u0435 \u0438\u043C\u044F:";
+    span.style.display = "block";
+    span.style.marginBottom = "8px";
+    const input = new import_obsidian9.TextComponent(customContainer);
+    input.setPlaceholder("\u041D\u043E\u0432\u043E\u0435 \u0438\u043C\u044F \u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0433\u043E");
+    input.inputEl.style.width = "100%";
+    const addTeamBtn = new import_obsidian9.ButtonComponent(contentEl).setButtonText("+ \u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0432 \u043A\u043E\u043C\u0430\u043D\u0434\u0443").setClass("mod-small").onClick(async () => {
+      const newName = input.inputEl.value.trim();
+      if (newName) {
+        await this.addToTeam(newName);
+        this.close();
+      } else {
+        input.inputEl.focus();
+      }
+    });
+    const btnContainer = contentEl.createDiv();
+    btnContainer.style.display = "flex";
+    btnContainer.style.gap = "10px";
+    btnContainer.style.marginTop = "16px";
+    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C").setCta().onClick(() => {
+      const value = input.inputEl.value.trim() || select.value;
+      this.onSave(value);
+      this.close();
+    });
+    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
+  }
+  async addToTeam(name) {
+    const routinesFile = this.app.vault.getAbstractFileByPath("routines.md");
+    if (!routinesFile || !(routinesFile instanceof import_obsidian9.TFile)) {
+      const content = `# \u041A\u043E\u043C\u0430\u043D\u0434\u0430
+- ${name}
+`;
+      await this.app.vault.create("routines.md", content);
+    } else {
+      const content = await this.app.vault.read(routinesFile);
+      if (!content.includes("# \u041A\u043E\u043C\u0430\u043D\u0434\u0430") && !content.includes("# \u043A\u043E\u043C\u0430\u043D\u0434\u0430")) {
+        const newContent = content + "\n# \u041A\u043E\u043C\u0430\u043D\u0434\u0430\n- " + name + "\n";
+        await this.app.vault.modify(routinesFile, newContent);
+      } else if (!content.includes("- " + name)) {
+        const lines = content.split("\n");
+        let inTeamSection = false;
+        const newLines = [];
+        for (const line of lines) {
+          if (line.trim().toLowerCase() === "# \u043A\u043E\u043C\u0430\u043D\u0434\u0430") {
+            inTeamSection = true;
+          }
+          if (inTeamSection && (line.startsWith("# ") || line.startsWith("## "))) {
+            newLines.push(line);
+            newLines.push("- " + name);
+            inTeamSection = false;
+            continue;
+          }
+          newLines.push(line);
+        }
+        if (inTeamSection) {
+          newLines.push("- " + name);
+        }
+        await this.app.vault.modify(routinesFile, newLines.join("\n"));
+      }
+    }
+    this.onSave(name);
   }
 };
 
@@ -1773,7 +2009,11 @@ var NotesView = class extends BaseView {
     this.notes.forEach((note) => {
       const card = grid.createDiv({ cls: "monitoring-note-card" });
       card.createDiv({ cls: "note-card-title", text: note.name });
-      card.createDiv({ cls: "note-card-date", text: "\u0421\u043E\u0437\u0434\u0430\u043D\u0430: " + (note.created || "---") });
+      const meta = card.createDiv({ cls: "note-card-meta" });
+      meta.createSpan({ text: "\u0421\u043E\u0437\u0434\u0430\u043D\u0430: " + (note.created || "---") });
+      if (note.author) {
+        meta.createSpan({ text: " | \u0410\u0432\u0442\u043E\u0440: " + note.author });
+      }
       const tagsCont = card.createDiv({ cls: "note-card-tags" });
       note.tags.filter((t) => t !== "note").forEach((tag) => {
         tagsCont.createSpan({ cls: "monitoring-tag-pill", text: "#" + tag });
@@ -1784,7 +2024,7 @@ var NotesView = class extends BaseView {
 };
 
 // src/main-page/ResourcesView.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var ResourcesView = class extends BaseView {
   constructor(app) {
     super(app);
@@ -1861,7 +2101,7 @@ var ResourcesView = class extends BaseView {
     } else {
       const vaultPath = this.app.vault.adapter.basePath;
       if (!vaultPath) {
-        new import_obsidian9.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0440\u043E\u0432\u043E\u0434\u043D\u0438\u043A");
+        new import_obsidian10.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0440\u043E\u0432\u043E\u0434\u043D\u0438\u043A");
         return;
       }
       fullPath = `${vaultPath}\\${path2.replace(/\//g, "\\")}`;
@@ -1922,7 +2162,7 @@ var ResourcesView = class extends BaseView {
       newLines.push(line);
     }
     await this.app.vault.modify(file, newLines.join("\n"));
-    new import_obsidian9.Notice("\u0420\u0435\u0441\u0443\u0440\u0441 \u0443\u0434\u0430\u043B\u0451\u043D");
+    new import_obsidian10.Notice("\u0420\u0435\u0441\u0443\u0440\u0441 \u0443\u0434\u0430\u043B\u0451\u043D");
     this.render(this.containerEl.children[1]);
   }
   showAddGroupModal() {
@@ -1950,12 +2190,12 @@ var ResourcesView = class extends BaseView {
     } else {
       await this.app.vault.create("resources.md", content);
     }
-    new import_obsidian9.Notice(`\u0413\u0440\u0443\u043F\u043F\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430`);
+    new import_obsidian10.Notice(`\u0413\u0440\u0443\u043F\u043F\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430`);
   }
   async addResource(groupName, name, url, icon) {
     const file = this.app.vault.getAbstractFileByPath("resources.md");
     if (!file) {
-      new import_obsidian9.Notice("\u0424\u0430\u0439\u043B resources.md \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D");
+      new import_obsidian10.Notice("\u0424\u0430\u0439\u043B resources.md \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D");
       return;
     }
     let content = await this.app.vault.read(file);
@@ -1974,7 +2214,7 @@ var ResourcesView = class extends BaseView {
       }
     }
     if (insertIndex === -1) {
-      new import_obsidian9.Notice("\u0413\u0440\u0443\u043F\u043F\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430: " + groupName);
+      new import_obsidian10.Notice("\u0413\u0440\u0443\u043F\u043F\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430: " + groupName);
       return;
     }
     let insertPos = insertIndex + 1;
@@ -1984,7 +2224,7 @@ var ResourcesView = class extends BaseView {
     const newLine = `- [${icon}](${url}) ${name}`;
     lines.splice(insertPos, 0, newLine);
     await this.app.vault.modify(file, lines.join("\n"));
-    new import_obsidian9.Notice(`\u0420\u0435\u0441\u0443\u0440\u0441 "${name}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D`);
+    new import_obsidian10.Notice(`\u0420\u0435\u0441\u0443\u0440\u0441 "${name}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D`);
   }
   async parseResourcesFile() {
     const file = this.app.vault.getAbstractFileByPath("resources.md");
@@ -2054,7 +2294,7 @@ var ResourcesView = class extends BaseView {
   }
 };
 var ICON_LIST = ["\u{1F4C1}", "\u{1F4C2}", "\u2699\uFE0F", "\u{1F527}", "\u{1F517}", "\u{1F310}", "\u{1F4DA}", "\u{1F4DD}", "\u{1F4CA}", "\u{1F4C8}", "\u{1F4BC}", "\u{1F3E0}", "\u{1F3AF}", "\u{1F4CB}", "\u{1F5C2}\uFE0F", "\u{1F5A5}\uFE0F", "\u{1F4F1}", "\u2601\uFE0F", "\u{1F512}", "\u{1F6E0}\uFE0F"];
-var AddGroupModal = class extends import_obsidian9.Modal {
+var AddGroupModal = class extends import_obsidian10.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.selectedIcon = "\u{1F4C1}";
@@ -2079,12 +2319,12 @@ var AddGroupModal = class extends import_obsidian9.Modal {
       };
     });
     (_a = iconGrid.querySelector("button")) == null ? void 0 : _a.addClass("selected");
-    const nameInput = new import_obsidian9.TextComponent(contentEl);
+    const nameInput = new import_obsidian10.TextComponent(contentEl);
     nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0433\u0440\u0443\u043F\u043F\u044B");
     nameInput.inputEl.style.width = "100%";
     nameInput.inputEl.style.marginBottom = "20px";
     const btnContainer = contentEl.createDiv();
-    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian10.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       const name = nameInput.getValue().trim();
       if (name) {
         this.onSubmit(name, this.selectedIcon);
@@ -2093,7 +2333,7 @@ var AddGroupModal = class extends import_obsidian9.Modal {
     });
   }
 };
-var AddResourceModal = class extends import_obsidian9.Modal {
+var AddResourceModal = class extends import_obsidian10.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.selectedIcon = "\u{1F517}";
@@ -2118,16 +2358,16 @@ var AddResourceModal = class extends import_obsidian9.Modal {
       };
     });
     (_a = iconGrid.querySelector("button")) == null ? void 0 : _a.addClass("selected");
-    const nameInput = new import_obsidian9.TextComponent(contentEl);
+    const nameInput = new import_obsidian10.TextComponent(contentEl);
     nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435");
     nameInput.inputEl.style.width = "100%";
     nameInput.inputEl.style.marginBottom = "10px";
-    const urlInput = new import_obsidian9.TextComponent(contentEl);
+    const urlInput = new import_obsidian10.TextComponent(contentEl);
     urlInput.setPlaceholder("URL \u0438\u043B\u0438 \u043F\u0443\u0442\u044C \u043A \u043F\u0430\u043F\u043A\u0435 (https://... \u0438\u043B\u0438 C:...)");
     urlInput.inputEl.style.width = "100%";
     urlInput.inputEl.style.marginBottom = "20px";
     const btnContainer = contentEl.createDiv();
-    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian10.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       const name = nameInput.getValue().trim();
       const url = urlInput.getValue().trim();
       if (name && url) {
@@ -2140,12 +2380,14 @@ var AddResourceModal = class extends import_obsidian9.Modal {
 
 // src/main-page/MainPageView.ts
 var MAIN_PAGE_VIEW_TYPE = "monitoring-main-page-view";
-var MainPageView = class extends import_obsidian10.ItemView {
+var MainPageView = class extends import_obsidian11.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.activeTab = "dashboard";
     this.calendarWeekOffset = 0;
     this.currentFilterId = null;
+    this.selectedResponsible = null;
+    this.teamMembers = [];
     this.isRefreshing = false;
     this.plugin = plugin;
     this.dataService = new DataService(
@@ -2153,6 +2395,7 @@ var MainPageView = class extends import_obsidian10.ItemView {
       this.plugin.settings.incidentsFolder,
       this.plugin.settings.simpleNotesFolder
     );
+    this.teamService = new TeamService(this.app);
     this.resourcesView = new ResourcesView(this.app);
   }
   getViewType() {
@@ -2174,12 +2417,21 @@ var MainPageView = class extends import_obsidian10.ItemView {
       return;
     this.isRefreshing = true;
     try {
+      this.teamMembers = await this.teamService.getTeamMembers();
       const container = this.containerEl.children[1];
       container.empty();
       container.addClass("monitoring-main-page");
       this.renderHeader(container);
+      this.renderFilterBar(container);
       this.renderTabs(container);
-      const data = await this.dataService.fetchVaultData();
+      let data = await this.dataService.fetchVaultData();
+      if (this.selectedResponsible) {
+        data = {
+          ...data,
+          tasks: data.tasks.filter((t) => t.responsible === this.selectedResponsible),
+          projects: data.projects.filter((p) => p.responsible === this.selectedResponsible)
+        };
+      }
       if (this.activeTab === "dashboard") {
         const dashboardView = new DashboardView(
           this.app,
@@ -2199,7 +2451,9 @@ var MainPageView = class extends import_obsidian10.ItemView {
           this.plugin.templateManager,
           data.tasks,
           data.projects,
-          () => this.refreshContent()
+          () => this.refreshContent(),
+          this.teamMembers,
+          this.plugin.settings.currentUser
         );
         kanbanView.render(container);
       } else if (this.activeTab === "calendar") {
@@ -2225,7 +2479,7 @@ var MainPageView = class extends import_obsidian10.ItemView {
     if (container.querySelector(".main-page-header-container"))
       return;
     const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.3.1", cls: "main-page-header" });
+    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.4.0", cls: "main-page-header" });
     const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
     btnGroup.createEl("button", {
       cls: "monitoring-refresh-btn",
@@ -2241,7 +2495,7 @@ var MainPageView = class extends import_obsidian10.ItemView {
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443", async (name) => {
       const file = await this.plugin.templateManager.createTaskNote(name);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian10.Notice('\u0417\u0430\u0434\u0430\u0447\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
+      new import_obsidian11.Notice('\u0417\u0430\u0434\u0430\u0447\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
       this.refreshContent();
     });
     btnGroup.createEl("button", {
@@ -2250,7 +2504,7 @@ var MainPageView = class extends import_obsidian10.ItemView {
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442", async (name) => {
       const file = await this.plugin.templateManager.createProjectNote(name);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian10.Notice('\u041F\u0440\u043E\u0435\u043A\u0442 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D!');
+      new import_obsidian11.Notice('\u041F\u0440\u043E\u0435\u043A\u0442 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D!');
       this.refreshContent();
     });
     btnGroup.createEl("button", {
@@ -2259,7 +2513,7 @@ var MainPageView = class extends import_obsidian10.ItemView {
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u043C\u0435\u0442\u043A\u0443", async (name) => {
       const file = await this.plugin.templateManager.createSimpleNote(name);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian10.Notice('\u0417\u0430\u043C\u0435\u0442\u043A\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
+      new import_obsidian11.Notice('\u0417\u0430\u043C\u0435\u0442\u043A\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
       this.refreshContent();
     });
     btnGroup.createEl("button", {
@@ -2269,10 +2523,57 @@ var MainPageView = class extends import_obsidian10.ItemView {
       try {
         const file = await this.plugin.dailyService.createDailyNote();
         await this.app.workspace.getLeaf(false).openFile(file);
-        new import_obsidian10.Notice("\u0415\u0436\u0435\u0434\u043D\u0435\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u0442\u043A\u0430 \u043E\u0442\u043A\u0440\u044B\u0442\u0430!");
+        new import_obsidian11.Notice("\u0415\u0436\u0435\u0434\u043D\u0435\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u0442\u043A\u0430 \u043E\u0442\u043A\u0440\u044B\u0442\u0430!");
       } catch (e) {
-        new import_obsidian10.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
+        new import_obsidian11.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
       }
+    };
+  }
+  renderFilterBar(container) {
+    const filterContainer = container.createDiv({ cls: "monitoring-filter-bar" });
+    const label = filterContainer.createSpan({ text: "\u041E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439: " });
+    label.style.marginRight = "10px";
+    const select = filterContainer.createEl("select", { cls: "monitoring-filter-select" });
+    select.style.padding = "6px 12px";
+    select.style.borderRadius = "6px";
+    select.style.backgroundColor = "var(--background-primary)";
+    select.style.border = "1px solid var(--border-color)";
+    select.style.color = "var(--text-normal)";
+    const defaultOption = select.createEl("option");
+    defaultOption.text = "\u0412\u0441\u0435";
+    defaultOption.value = "";
+    defaultOption.selected = !this.selectedResponsible;
+    const currentUser = this.plugin.settings.currentUser;
+    const allMembers = [...this.teamMembers];
+    if (currentUser && !allMembers.includes(currentUser)) {
+      allMembers.push(currentUser);
+    }
+    allMembers.forEach((member) => {
+      const option = select.createEl("option");
+      option.text = member;
+      option.value = member;
+      if (this.selectedResponsible === member) {
+        option.selected = true;
+      }
+    });
+    if (currentUser) {
+      const myTasksOption = select.createEl("option");
+      myTasksOption.text = "\u041C\u043E\u0438 \u0437\u0430\u0434\u0430\u0447\u0438";
+      myTasksOption.value = "__my__";
+      if (this.selectedResponsible === currentUser) {
+        myTasksOption.selected = true;
+      }
+    }
+    select.onchange = () => {
+      const value = select.value;
+      if (value === "__my__") {
+        this.selectedResponsible = this.plugin.settings.currentUser || null;
+      } else if (value === "") {
+        this.selectedResponsible = null;
+      } else {
+        this.selectedResponsible = value;
+      }
+      this.refreshContent();
     };
   }
   renderTabs(container) {
@@ -2301,11 +2602,11 @@ var MainPageView = class extends import_obsidian10.ItemView {
     new NamingModal(this.app, title, onSubmit).open();
   }
   async generateWeeklyReport() {
-    new import_obsidian10.Notice("\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043E\u0442\u0447\u0435\u0442\u0430 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E...");
+    new import_obsidian11.Notice("\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043E\u0442\u0447\u0435\u0442\u0430 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E...");
     try {
       const data = await this.dataService.fetchVaultData();
       if (data.incidents.length === 0) {
-        new import_obsidian10.Notice("\u041D\u0435\u0442 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430.");
+        new import_obsidian11.Notice("\u041D\u0435\u0442 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430.");
         return;
       }
       let combinedText = "";
@@ -2318,7 +2619,7 @@ var MainPageView = class extends import_obsidian10.ItemView {
         }
       }
       if (!combinedText) {
-        new import_obsidian10.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u0432\u043B\u0435\u0447\u044C \u0434\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F \u043E\u0442\u0447\u0435\u0442\u0430.");
+        new import_obsidian11.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u0432\u043B\u0435\u0447\u044C \u0434\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F \u043E\u0442\u0447\u0435\u0442\u0430.");
         return;
       }
       const report = await this.plugin.llmService.generateWeeklyReport(combinedText);
@@ -2327,16 +2628,16 @@ var MainPageView = class extends import_obsidian10.ItemView {
       const fileContent = "# \u0415\u0436\u0435\u043D\u0435\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u043E\u0442\u0447\u0435\u0442 \u043E\u0442 " + dateStr + "\n\n" + report + "\n\n## \u041F\u0440\u043E\u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0435 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u044B\n" + data.incidents.slice(0, 10).map((i) => "- [[" + i.path + "|" + i.name + "]]").join("\n");
       const file = await this.app.vault.create(fileName, fileContent);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian10.Notice("\u041E\u0442\u0447\u0435\u0442 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u043D!");
+      new import_obsidian11.Notice("\u041E\u0442\u0447\u0435\u0442 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u043D!");
     } catch (error) {
       console.error(error);
-      new import_obsidian10.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: " + error.message);
+      new import_obsidian11.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: " + error.message);
     }
   }
   async onClose() {
   }
 };
-var NamingModal = class extends import_obsidian10.Modal {
+var NamingModal = class extends import_obsidian11.Modal {
   constructor(app, title, onSubmit) {
     super(app);
     this.name = "";
@@ -2348,13 +2649,13 @@ var NamingModal = class extends import_obsidian10.Modal {
       this.onSubmit(this.name);
       this.close();
     } else {
-      new import_obsidian10.Notice("\u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435");
+      new import_obsidian11.Notice("\u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435");
     }
   }
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: this.title });
-    const input = new import_obsidian10.TextComponent(contentEl);
+    const input = new import_obsidian11.TextComponent(contentEl);
     input.setPlaceholder("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.onChange((value) => this.name = value);
     input.inputEl.style.width = "100%";
@@ -2363,7 +2664,7 @@ var NamingModal = class extends import_obsidian10.Modal {
       input.inputEl.focus();
     });
     const btnContainer = contentEl.createDiv({ cls: "modal-button-container" });
-    new import_obsidian10.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => this.submit());
+    new import_obsidian11.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => this.submit());
     input.inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -2378,7 +2679,7 @@ var NamingModal = class extends import_obsidian10.Modal {
 };
 
 // src/main.ts
-var MonitoringPlugin = class extends import_obsidian11.Plugin {
+var MonitoringPlugin = class extends import_obsidian12.Plugin {
   async onload() {
     await this.loadSettings();
     this.llmService = new LLMService(this.settings);
@@ -2440,16 +2741,16 @@ var MonitoringPlugin = class extends import_obsidian11.Plugin {
             if (!fm["tracked_subjects"].includes(topic))
               fm["tracked_subjects"].push(topic);
           });
-          new import_obsidian11.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
+          new import_obsidian12.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
           input.value = "";
         } else {
-          new import_obsidian11.Notice("\u0424\u0430\u0439\u043B \u0434\u0430\u0448\u0431\u043E\u0440\u0434\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D!");
+          new import_obsidian12.Notice("\u0424\u0430\u0439\u043B \u0434\u0430\u0448\u0431\u043E\u0440\u0434\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D!");
         }
       };
     });
     this.registerMarkdownCodeBlockProcessor("monitoring-duration", (source, el, ctx) => {
       const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-      if (!(file instanceof import_obsidian11.TFile))
+      if (!(file instanceof import_obsidian12.TFile))
         return;
       const child = new MonitoringDurationChild(el, this, file);
       ctx.addChild(child);
@@ -2479,7 +2780,7 @@ var MonitoringPlugin = class extends import_obsidian11.Plugin {
   }
   async processEmails() {
     var _a;
-    new import_obsidian11.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
+    new import_obsidian12.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
     try {
       const allEmails = await this.outlookService.fetchEmails();
       allEmails.reverse();
@@ -2487,7 +2788,7 @@ var MonitoringPlugin = class extends import_obsidian11.Plugin {
       if (newEmails.length === 0)
         newEmails = allEmails.slice(Math.max(allEmails.length - 10, 0));
       if (newEmails.length === 0) {
-        new import_obsidian11.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
+        new import_obsidian12.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
         return;
       }
       const dashboardFile = this.app.vault.getAbstractFileByPath(this.settings.dashboardNoteName);
@@ -2521,10 +2822,10 @@ var MonitoringPlugin = class extends import_obsidian11.Plugin {
           this.settings.scannedEmailIds.push(email.entryId);
       }
       await this.saveSettings();
-      new import_obsidian11.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
+      new import_obsidian12.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
     } catch (error) {
       console.error(error);
-      new import_obsidian11.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
+      new import_obsidian12.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
     }
   }
   onunload() {
@@ -2584,18 +2885,18 @@ ${newRow}`;
         await this.app.vault.createFolder(folderName);
       const newPath = `${folderName}/${file.name}`;
       if (this.app.vault.getAbstractFileByPath(newPath)) {
-        new import_obsidian11.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
+        new import_obsidian12.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
         return;
       }
       await this.app.fileManager.renameFile(file, newPath);
-      new import_obsidian11.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
+      new import_obsidian12.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
     } catch (e) {
       console.error(e);
-      new import_obsidian11.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
+      new import_obsidian12.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
     }
   }
 };
-var MonitoringDurationChild = class extends import_obsidian11.MarkdownRenderChild {
+var MonitoringDurationChild = class extends import_obsidian12.MarkdownRenderChild {
   constructor(containerEl, plugin, file) {
     super(containerEl);
     this.plugin = plugin;
@@ -2617,17 +2918,28 @@ var MonitoringDurationChild = class extends import_obsidian11.MarkdownRenderChil
     let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
     const isSimpleNote = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["type"]) === "note";
     const renderCollapsed = () => {
-      var _a2;
+      var _a2, _b2, _c, _d;
       rootContainer.empty();
       const panelContainer = rootContainer.createDiv({ cls: "monitoring-controls-panel" });
       if (!isSimpleNote) {
         const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
-        const dContainer = row1.createDiv({ cls: "monitoring-half-row" });
+        const dContainer = row1.createDiv({ cls: "monitoring-third-row" });
         dContainer.createEl("button", {
           cls: "monitoring-glass-btn monitoring-btn-full",
           text: currentDeadline ? `\u23F3 ${currentDeadline}` : "\u{1F4C5} \u0421\u0440\u043E\u043A"
         }).onclick = () => renderExpanded();
-        const pContainer = row1.createDiv({ cls: "monitoring-half-row" });
+        const respContainer = row1.createDiv({ cls: "monitoring-third-row" });
+        const currentResponsible = ((_a2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a2["responsible"]) || this.plugin.settings.currentUser || "";
+        const respBtn = respContainer.createEl("button", {
+          cls: "monitoring-glass-btn monitoring-btn-full",
+          text: currentResponsible ? `\u{1F464} ${currentResponsible}` : "\u{1F464} \u041E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439"
+        });
+        respBtn.onclick = () => new ResponsibleButtonModal(this.plugin.app, this.file, async (name) => {
+          await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+            fm["responsible"] = name;
+          });
+        }).open();
+        const pContainer = row1.createDiv({ cls: "monitoring-third-row" });
         let isPExp = false;
         const renderPUI = () => {
           var _a3;
@@ -2673,6 +2985,26 @@ var MonitoringDurationChild = class extends import_obsidian11.MarkdownRenderChil
             }
           };
         });
+      } else {
+        const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
+        const dateContainer = row1.createDiv({ cls: "monitoring-half-row" });
+        const createdDate = ((_b2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b2["created"]) || "";
+        dateContainer.createEl("button", {
+          cls: "monitoring-glass-btn monitoring-btn-full",
+          text: createdDate ? `\u{1F4C5} ${createdDate}` : "\u{1F4C5} \u0414\u0430\u0442\u0430"
+        }).onclick = () => {
+        };
+        const authorContainer = row1.createDiv({ cls: "monitoring-half-row" });
+        const currentAuthor = ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["author"]) || this.plugin.settings.currentUser || "";
+        const authorBtn = authorContainer.createEl("button", {
+          cls: "monitoring-glass-btn monitoring-btn-full",
+          text: currentAuthor ? `\u270D\uFE0F ${currentAuthor}` : "\u270D\uFE0F \u0410\u0432\u0442\u043E\u0440"
+        });
+        authorBtn.onclick = () => new ResponsibleButtonModal(this.plugin.app, this.file, async (name) => {
+          await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+            fm["author"] = name;
+          });
+        }).open();
       }
       const toolsRow = panelContainer.createDiv({ cls: "monitoring-tools-row" });
       toolsRow.createEl("button", { cls: "monitoring-glass-btn tool-btn", text: "\u2795 \u0417\u0430\u0434\u0430\u0447\u0443" }).onclick = () => {
@@ -2696,7 +3028,7 @@ var MonitoringDurationChild = class extends import_obsidian11.MarkdownRenderChil
           await this.plugin.app.vault.delete(this.file);
       };
       const tagList = rootContainer.createDiv({ cls: "monitoring-tag-list" });
-      const tags = ((_a2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a2["tags"]) || [];
+      const tags = ((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["tags"]) || [];
       (Array.isArray(tags) ? tags : [tags]).forEach((tag) => {
         const pill = tagList.createSpan({ cls: "monitoring-tag-pill", text: `#${tag}` });
         pill.onclick = () => {
@@ -2815,7 +3147,7 @@ var MonitoringDurationChild = class extends import_obsidian11.MarkdownRenderChil
     renderCollapsed();
   }
 };
-var TagModal = class extends import_obsidian11.Modal {
+var TagModal = class extends import_obsidian12.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.query = "";
@@ -2824,7 +3156,7 @@ var TagModal = class extends import_obsidian11.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0442\u0435\u0433" });
-    const input = new import_obsidian11.TextComponent(contentEl);
+    const input = new import_obsidian12.TextComponent(contentEl);
     input.setPlaceholder("\u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u0432\u0432\u043E\u0434\u0438\u0442\u044C \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
     input.inputEl.focus();
@@ -2859,7 +3191,7 @@ var TagModal = class extends import_obsidian11.Modal {
     this.contentEl.empty();
   }
 };
-var ResourceModal = class extends import_obsidian11.Modal {
+var ResourceModal = class extends import_obsidian12.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.link = "";
@@ -2869,15 +3201,15 @@ var ResourceModal = class extends import_obsidian11.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u0440\u0435\u0441\u0443\u0440\u0441" });
-    const lInput = new import_obsidian11.TextComponent(contentEl);
+    const lInput = new import_obsidian12.TextComponent(contentEl);
     lInput.setPlaceholder("http://...");
     lInput.onChange((val) => this.link = val);
     lInput.inputEl.style.width = "100%";
-    const dInput = new import_obsidian11.TextComponent(contentEl);
+    const dInput = new import_obsidian12.TextComponent(contentEl);
     dInput.setPlaceholder("\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435...");
     dInput.onChange((val) => this.description = val);
     dInput.inputEl.style.width = "100%";
-    new import_obsidian11.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian12.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       if (this.link) {
         this.onSubmit(this.link, this.description);
         this.close();
@@ -2888,7 +3220,7 @@ var ResourceModal = class extends import_obsidian11.Modal {
     this.contentEl.empty();
   }
 };
-var NewTaskModal = class extends import_obsidian11.Modal {
+var NewTaskModal = class extends import_obsidian12.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.taskName = "";
@@ -2897,14 +3229,14 @@ var NewTaskModal = class extends import_obsidian11.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443" });
-    const input = new import_obsidian11.TextComponent(contentEl);
+    const input = new import_obsidian12.TextComponent(contentEl);
     input.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
     input.onChange((val) => this.taskName = val);
     requestAnimationFrame(() => {
       input.inputEl.focus();
     });
-    new import_obsidian11.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian12.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
       if (this.taskName) {
         this.onSubmit(this.taskName);
         this.close();
@@ -2913,5 +3245,117 @@ var NewTaskModal = class extends import_obsidian11.Modal {
   }
   onClose() {
     this.contentEl.empty();
+  }
+};
+var ResponsibleButtonModal = class extends import_obsidian12.Modal {
+  constructor(app, file, onSave) {
+    super(app);
+    this.teamMembers = [];
+    this.currentUser = "";
+    this.file = file;
+    this.onSave = onSave;
+    this.teamService = new TeamService(app);
+  }
+  async onOpen() {
+    var _a, _b;
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0433\u043E" });
+    this.teamMembers = await this.teamService.getTeamMembers();
+    const cache = this.app.metadataCache.getFileCache(this.file);
+    this.currentUser = this.settings.currentUser || "";
+    const allMembers = [...this.teamMembers];
+    if (this.currentUser && !allMembers.includes(this.currentUser)) {
+      allMembers.push(this.currentUser);
+    }
+    const selectContainer = contentEl.createDiv();
+    selectContainer.style.marginBottom = "20px";
+    const select = selectContainer.createEl("select");
+    select.style.width = "100%";
+    select.style.padding = "8px";
+    const currentValue = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["responsible"]) || ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["author"]) || "";
+    const emptyOption = select.createEl("option");
+    emptyOption.text = "\u041D\u0435 \u043D\u0430\u0437\u043D\u0430\u0447\u0435\u043D";
+    emptyOption.value = "";
+    if (!currentValue)
+      emptyOption.selected = true;
+    allMembers.forEach((member) => {
+      const option = select.createEl("option");
+      option.text = member;
+      option.value = member;
+      if (currentValue === member)
+        option.selected = true;
+    });
+    if (currentValue && !allMembers.includes(currentValue)) {
+      const customOption = select.createEl("option");
+      customOption.text = currentValue + " (\u0442\u0435\u043A\u0443\u0449\u0438\u0439)";
+      customOption.value = currentValue;
+      customOption.selected = true;
+    }
+    const customContainer = contentEl.createDiv();
+    customContainer.style.marginBottom = "20px";
+    const span = customContainer.createEl("span");
+    span.textContent = "\u0418\u043B\u0438 \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u043E\u0432\u043E\u0435 \u0438\u043C\u044F:";
+    span.style.display = "block";
+    span.style.marginBottom = "8px";
+    const input = new import_obsidian12.TextComponent(customContainer);
+    input.setPlaceholder("\u041D\u043E\u0432\u043E\u0435 \u0438\u043C\u044F");
+    input.inputEl.style.width = "100%";
+    const addTeamBtn = new import_obsidian12.ButtonComponent(contentEl).setButtonText("+ \u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0432 \u043A\u043E\u043C\u0430\u043D\u0434\u0443").setClass("mod-small").onClick(async () => {
+      const newName = input.inputEl.value.trim();
+      if (newName) {
+        await this.addToTeam(newName);
+        this.close();
+      }
+    });
+    const btnContainer = contentEl.createDiv();
+    btnContainer.style.display = "flex";
+    btnContainer.style.gap = "10px";
+    btnContainer.style.marginTop = "16px";
+    new import_obsidian12.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C").setCta().onClick(() => {
+      const value = input.inputEl.value.trim() || select.value;
+      this.onSave(value);
+      this.close();
+    });
+    new import_obsidian12.ButtonComponent(btnContainer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
+  }
+  async addToTeam(name) {
+    const routinesFile = this.app.vault.getAbstractFileByPath("routines.md");
+    if (!routinesFile || !(routinesFile instanceof import_obsidian12.TFile)) {
+      const content = `# \u041A\u043E\u043C\u0430\u043D\u0434\u0430
+- ${name}
+`;
+      await this.app.vault.create("routines.md", content);
+    } else {
+      const content = await this.app.vault.read(routinesFile);
+      if (!content.includes("# \u041A\u043E\u043C\u0430\u043D\u0434\u0430") && !content.includes("# \u043A\u043E\u043C\u0430\u043D\u0434\u0430")) {
+        const newContent = content + "\n# \u041A\u043E\u043C\u0430\u043D\u0434\u0430\n- " + name + "\n";
+        await this.app.vault.modify(routinesFile, newContent);
+      } else if (!content.includes("- " + name)) {
+        const lines = content.split("\n");
+        let inTeamSection = false;
+        const newLines = [];
+        for (const line of lines) {
+          if (line.trim().toLowerCase() === "# \u043A\u043E\u043C\u0430\u043D\u0434\u0430") {
+            inTeamSection = true;
+          }
+          if (inTeamSection && (line.startsWith("# ") || line.startsWith("## "))) {
+            newLines.push(line);
+            newLines.push("- " + name);
+            inTeamSection = false;
+            continue;
+          }
+          newLines.push(line);
+        }
+        if (inTeamSection) {
+          newLines.push("- " + name);
+        }
+        await this.app.vault.modify(routinesFile, newLines.join("\n"));
+      }
+    }
+    this.onSave(name);
+  }
+  get settings() {
+    var _a;
+    return ((_a = this.app.plugins.plugins["monitoring-plugin"]) == null ? void 0 : _a.settings) || DEFAULT_SETTINGS;
   }
 };

@@ -16,6 +16,7 @@ export interface MonitoringPluginSettings {
     incidentsFolder: string;
     simpleNotesFolder: string;
     savedFilters: { name: string, tags: string[] }[];
+    currentUser: string;
 }
 
 export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
@@ -32,7 +33,8 @@ export const DEFAULT_SETTINGS: MonitoringPluginSettings = {
     chatTemperature: 0.7,
     incidentsFolder: "mail",
     simpleNotesFolder: "notes",
-    savedFilters: []
+    savedFilters: [],
+    currentUser: ''
 };
 
 export class MonitoringSettingTab extends PluginSettingTab {
@@ -166,6 +168,19 @@ export class MonitoringSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.simpleNotesFolder)
                 .onChange(async (value) => {
                     this.plugin.settings.simpleNotesFolder = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        containerEl.createEl('h3', { text: 'Команда' });
+
+        new Setting(containerEl)
+            .setName('Ваше имя')
+            .setDesc('Ваше имя для фильтрации задач (используется в "Мои задачи")')
+            .addText(text => text
+                .setPlaceholder('Ваше имя')
+                .setValue(this.plugin.settings.currentUser)
+                .onChange(async (value) => {
+                    this.plugin.settings.currentUser = value;
                     await this.plugin.saveSettings();
                 }));
 

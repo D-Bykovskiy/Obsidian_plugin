@@ -101,7 +101,8 @@ export class DataService {
             path: file.path,
             priority: cache?.frontmatter?.['priority'] || 3,
             tags,
-            linkedProject
+            linkedProject,
+            responsible: cache?.frontmatter?.['responsible'] || undefined
         };
     }
 
@@ -113,7 +114,8 @@ export class DataService {
             path: file.path,
             goal: cache?.frontmatter?.['goal'] || '',
             priority: cache?.frontmatter?.['priority'],
-            target_date: cache?.frontmatter?.['target_date']
+            target_date: cache?.frontmatter?.['target_date'],
+            responsible: cache?.frontmatter?.['responsible'] || undefined
         };
     }
 
@@ -123,7 +125,8 @@ export class DataService {
             name: basename,
             path: file.path,
             created: cache?.frontmatter?.['created'] || '',
-            tags
+            tags,
+            author: cache?.frontmatter?.['author'] || undefined
         };
     }
 

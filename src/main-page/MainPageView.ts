@@ -6,16 +6,20 @@ import { KanbanView } from './KanbanView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
 import { ResourcesView } from './ResourcesView';
+import { TeamService } from '../team/TeamService';
 
 export const MAIN_PAGE_VIEW_TYPE = 'monitoring-main-page-view';
 
 export class MainPageView extends ItemView {
     plugin: MonitoringPlugin;
     dataService: DataService;
+    teamService: TeamService;
     resourcesView: ResourcesView;
     activeTab: 'dashboard' | 'kanban' | 'calendar' | 'notes' | 'resources' = 'dashboard';
     calendarWeekOffset: number = 0;
     currentFilterId: number | null = null;
+    selectedResponsible: string | null = null;
+    teamMembers: string[] = [];
 
     constructor(leaf: WorkspaceLeaf, plugin: MonitoringPlugin) {
         super(leaf);
@@ -25,6 +29,7 @@ export class MainPageView extends ItemView {
             this.plugin.settings.incidentsFolder,
             this.plugin.settings.simpleNotesFolder
         );
+        this.teamService = new TeamService(this.app);
         this.resourcesView = new ResourcesView(this.app);
     }
 
@@ -52,14 +57,25 @@ export class MainPageView extends ItemView {
 
         this.isRefreshing = true;
         try {
+            this.teamMembers = await this.teamService.getTeamMembers();
+
             const container = this.containerEl.children[1];
             container.empty();
             container.addClass('monitoring-main-page');
 
             this.renderHeader(container);
+            this.renderFilterBar(container);
             this.renderTabs(container);
 
-            const data = await this.dataService.fetchVaultData();
+            let data = await this.dataService.fetchVaultData();
+
+            if (this.selectedResponsible) {
+                data = {
+                    ...data,
+                    tasks: data.tasks.filter(t => t.responsible === this.selectedResponsible),
+                    projects: data.projects.filter(p => p.responsible === this.selectedResponsible)
+                };
+            }
 
             if (this.activeTab === 'dashboard') {
                 const dashboardView = new DashboardView(
@@ -80,7 +96,9 @@ export class MainPageView extends ItemView {
                     this.plugin.templateManager,
                     data.tasks,
                     data.projects,
-                    () => this.refreshContent()
+                    () => this.refreshContent(),
+                    this.teamMembers,
+                    this.plugin.settings.currentUser
                 );
                 kanbanView.render(container);
             } else if (this.activeTab === 'calendar') {
@@ -108,7 +126,7 @@ export class MainPageView extends ItemView {
         if (container.querySelector('.main-page-header-container')) return;
         
         const headerContainer = container.createDiv({ cls: 'main-page-header-container' });
-        headerContainer.createEl('h2', { text: 'Панель управления v1.3.1', cls: 'main-page-header' });
+        headerContainer.createEl('h2', { text: 'Панель управления v1.4.0', cls: 'main-page-header' });
         
         const btnGroup = headerContainer.createDiv({ cls: 'monitoring-header-btns' });
         
@@ -163,6 +181,61 @@ export class MainPageView extends ItemView {
             } catch (e) {
                 new Notice('Ошибка: ' + e.message);
             }
+        };
+    }
+
+    private renderFilterBar(container: Element): void {
+        const filterContainer = container.createDiv({ cls: 'monitoring-filter-bar' });
+        
+        const label = filterContainer.createSpan({ text: 'Ответственный: ' });
+        label.style.marginRight = '10px';
+        
+        const select = filterContainer.createEl('select', { cls: 'monitoring-filter-select' });
+        select.style.padding = '6px 12px';
+        select.style.borderRadius = '6px';
+        select.style.backgroundColor = 'var(--background-primary)';
+        select.style.border = '1px solid var(--border-color)';
+        select.style.color = 'var(--text-normal)';
+        
+        const defaultOption = select.createEl('option');
+        defaultOption.text = 'Все';
+        defaultOption.value = '';
+        defaultOption.selected = !this.selectedResponsible;
+        
+        const currentUser = this.plugin.settings.currentUser;
+        const allMembers = [...this.teamMembers];
+        if (currentUser && !allMembers.includes(currentUser)) {
+            allMembers.push(currentUser);
+        }
+        
+        allMembers.forEach(member => {
+            const option = select.createEl('option');
+            option.text = member;
+            option.value = member;
+            if (this.selectedResponsible === member) {
+                option.selected = true;
+            }
+        });
+
+        if (currentUser) {
+            const myTasksOption = select.createEl('option');
+            myTasksOption.text = 'Мои задачи';
+            myTasksOption.value = '__my__';
+            if (this.selectedResponsible === currentUser) {
+                myTasksOption.selected = true;
+            }
+        }
+
+        select.onchange = () => {
+            const value = select.value;
+            if (value === '__my__') {
+                this.selectedResponsible = this.plugin.settings.currentUser || null;
+            } else if (value === '') {
+                this.selectedResponsible = null;
+            } else {
+                this.selectedResponsible = value;
+            }
+            this.refreshContent();
         };
     }
 
