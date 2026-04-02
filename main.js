@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => MonitoringPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/llm/LLMService.ts
 var import_obsidian = require("obsidian");
@@ -662,11 +662,9 @@ var DailyService = class {
   }
   getDefaultRoutines() {
     return {
-      daily_morning: [
+      every_day: [
         { name: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043F\u043E\u0447\u0442\u0443", time: "09:00" },
-        { name: "\u041E\u0431\u0437\u043E\u0440 \u0437\u0430\u0434\u0430\u0447 \u043D\u0430 \u0434\u0435\u043D\u044C", time: "09:30" }
-      ],
-      daily_evening: [
+        { name: "\u041E\u0431\u0437\u043E\u0440 \u0437\u0430\u0434\u0430\u0447 \u043D\u0430 \u0434\u0435\u043D\u044C", time: "09:30" },
         { name: "\u0410\u043A\u0442\u0443\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B \u0437\u0430\u0434\u0430\u0447", time: "17:00" }
       ],
       mon: [],
@@ -684,7 +682,16 @@ var DailyService = class {
     };
   }
   parseRoutinesContent(content) {
-    const routines = this.getDefaultRoutines();
+    const routines = {
+      every_day: [],
+      mon: [],
+      tue: [],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: []
+    };
     const lines = content.split("\n");
     let currentDay = "";
     for (const line of lines) {
@@ -776,10 +783,9 @@ var DailyService = class {
     const dayKey = this.getDayKey(today);
     const dayName = this.getDayName(today);
     const weekNumber = this.getWeekNumber(today);
-    const morningRoutine = routines.daily_morning || [];
-    const eveningRoutine = routines.daily_evening || [];
+    const everyDayRoutine = routines.every_day || [];
     const dayRoutine = routines[dayKey] || [];
-    const allDayRoutine = [...morningRoutine, ...dayRoutine, ...eveningRoutine];
+    const allDayRoutine = [...everyDayRoutine, ...dayRoutine];
     let tasksList = "";
     if (todayTasks.length === 0) {
       tasksList = "*\u041D\u0435\u0442 \u0437\u0430\u0434\u0430\u0447 \u043D\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F*";
@@ -789,16 +795,6 @@ var DailyService = class {
         const status = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["status"]) || "To Do";
         const icon = this.getStatusIcon(status);
         tasksList += `- ${icon} [[${task.basename}]]
-`;
-      }
-    }
-    let routineList = "";
-    if (dayRoutine.length === 0) {
-      routineList = "*\u041D\u0435\u0442 \u0440\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u044B\u0445 \u0437\u0430\u0434\u0430\u0447 \u043D\u0430 \u044D\u0442\u043E\u0442 \u0434\u0435\u043D\u044C*";
-    } else {
-      for (const task of dayRoutine) {
-        const timeStr = task.time ? ` [${task.time}]` : "";
-        routineList += `- ${task.name}${timeStr}
 `;
       }
     }
@@ -814,7 +810,7 @@ var DailyService = class {
         return a.time.localeCompare(b.time);
       });
       for (const task of sorted) {
-        scheduleList += `- ${task.time || "--:--"} ${task.name}
+        scheduleList += `- [ ] ${task.name}${task.time ? ` [${task.time}]` : ""}
 `;
       }
     }
@@ -827,23 +823,13 @@ var DailyService = class {
 
 ---
 
-## \u{1F305} \u0423\u0442\u0440\u043E
-${morningRoutine.length > 0 ? morningRoutine.map((t) => `- [ ] ${t.name}${t.time ? ` [${t.time}]` : ""}`).join("\n") : "*\u041D\u0435\u0442 \u0437\u0430\u0434\u0430\u0447*"}
-
----
-
-## \u{1F4CB} \u0420\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u044B\u0435 \u0437\u0430\u0434\u0430\u0447\u0438 (${dayName})
-${routineList}
+## \u{1F550} \u0420\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u0434\u043D\u044F
+${scheduleList}
 
 ---
 
 ## \u2705 \u0417\u0430\u0434\u0430\u0447\u0438 \u043D\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F
 ${tasksList}
-
----
-
-## \u{1F550} \u0420\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u0434\u043D\u044F
-${scheduleList}
 
 ---
 
@@ -1052,7 +1038,7 @@ var ChatView = class extends import_obsidian4.ItemView {
 };
 
 // src/main-page/MainPageView.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 
 // src/main-page/DataService.ts
 var import_obsidian5 = require("obsidian");
@@ -1797,9 +1783,364 @@ var NotesView = class extends BaseView {
   }
 };
 
+// src/main-page/ResourcesView.ts
+var import_obsidian9 = require("obsidian");
+var ResourcesView = class extends BaseView {
+  constructor(app) {
+    super(app);
+    this.groups = [];
+  }
+  async render(container) {
+    container.addClass("monitoring-resources-view");
+    this.groups = await this.parseResourcesFile();
+    const header = container.createDiv({ cls: "resources-header" });
+    header.createEl("h2", { text: "\u0420\u0435\u0441\u0443\u0440\u0441\u044B", cls: "resources-title" });
+    header.createEl("button", {
+      cls: "monitoring-glass-btn resources-add-group-btn",
+      text: "+ \u0413\u0440\u0443\u043F\u043F\u0443"
+    }).onclick = () => this.showAddGroupModal();
+    const content = container.createDiv({ cls: "resources-content" });
+    if (this.groups.length === 0) {
+      content.createEl("p", {
+        text: '\u0420\u0435\u0441\u0443\u0440\u0441\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B. \u041D\u0430\u0436\u043C\u0438\u0442\u0435 "+ \u0413\u0440\u0443\u043F\u043F\u0443" \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0435\u0440\u0432\u0443\u044E.',
+        cls: "empty-state-text"
+      });
+      return;
+    }
+    for (const group of this.groups) {
+      this.renderGroup(content, group);
+    }
+  }
+  renderGroup(container, group) {
+    const groupEl = container.createDiv({ cls: "resource-group" });
+    const groupHeader = groupEl.createDiv({ cls: "resource-group-header" });
+    const groupTitle = groupHeader.createDiv({ cls: "resource-group-title" });
+    if (group.icon) {
+      groupTitle.createSpan({ text: group.icon + " ", cls: "group-icon" });
+    }
+    groupTitle.createSpan({ text: group.name });
+    groupHeader.createEl("button", {
+      cls: "resource-add-btn",
+      text: "+"
+    }).onclick = () => this.showAddResourceModal(group.name);
+    const groupItems = groupEl.createDiv({ cls: "resource-group-items" });
+    if (group.items.length === 0) {
+      groupItems.createEl("p", {
+        text: "\u041D\u0435\u0442 \u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432",
+        cls: "empty-state-text"
+      });
+      return;
+    }
+    for (const item of group.items) {
+      this.renderResourceItem(groupItems, item, group.name);
+    }
+  }
+  renderResourceItem(container, item, groupName) {
+    const btn = container.createEl("button", {
+      cls: "resource-item",
+      text: `${item.icon} ${item.name}`
+    });
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (item.url.startsWith("http") || item.url.startsWith("//")) {
+        window.open(item.url, "_blank");
+      } else {
+        this.openInExplorer(item.url);
+      }
+    };
+    btn.oncontextmenu = (e) => {
+      e.preventDefault();
+      this.showResourceContextMenu(e, item, groupName);
+    };
+  }
+  openInExplorer(path2) {
+    let fullPath;
+    if (/^[A-Za-z]:/.test(path2)) {
+      fullPath = path2;
+    } else {
+      const vaultPath = this.app.vault.adapter.basePath;
+      if (!vaultPath) {
+        new import_obsidian9.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0440\u043E\u0432\u043E\u0434\u043D\u0438\u043A");
+        return;
+      }
+      fullPath = `${vaultPath}\\${path2.replace(/\//g, "\\")}`;
+    }
+    window.open(`file://${fullPath.replace(/\\/g, "/")}`);
+  }
+  showResourceContextMenu(e, item, groupName) {
+    const menu = document.createElement("div");
+    menu.className = "context-menu";
+    menu.style.position = "fixed";
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    menu.style.zIndex = "1000";
+    const deleteBtn = menu.createEl("div", {
+      cls: "context-menu-item delete-item",
+      text: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"
+    });
+    deleteBtn.onclick = () => {
+      this.deleteResource(groupName, item);
+      menu.remove();
+    };
+    document.body.appendChild(menu);
+    const closeMenu = (event) => {
+      if (!menu.contains(event.target)) {
+        menu.remove();
+        document.removeEventListener("click", closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeMenu), 10);
+  }
+  async deleteResource(groupName, item) {
+    const file = this.app.vault.getAbstractFileByPath("resources.md");
+    if (!file)
+      return;
+    let content = await this.app.vault.read(file);
+    const lines = content.split("\n");
+    const newLines = [];
+    let inGroup = false;
+    let skipNextLine = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.match(/^##\s/) && line.includes(groupName)) {
+        inGroup = true;
+        newLines.push(line);
+        continue;
+      }
+      if (inGroup && line.match(/^##\s/)) {
+        inGroup = false;
+      }
+      if (inGroup && line.includes(`[${item.icon}](${item.url})`)) {
+        skipNextLine = true;
+        continue;
+      }
+      if (skipNextLine && line.trim() === "") {
+        skipNextLine = false;
+        continue;
+      }
+      newLines.push(line);
+    }
+    await this.app.vault.modify(file, newLines.join("\n"));
+    new import_obsidian9.Notice("\u0420\u0435\u0441\u0443\u0440\u0441 \u0443\u0434\u0430\u043B\u0451\u043D");
+    this.render(this.containerEl.children[1]);
+  }
+  showAddGroupModal() {
+    new AddGroupModal(this.app, async (name, icon) => {
+      await this.addGroup(name, icon);
+      this.render(this.containerEl.children[1]);
+    }).open();
+  }
+  showAddResourceModal(groupName) {
+    new AddResourceModal(this.app, async (name, url, icon) => {
+      await this.addResource(groupName, name, url, icon);
+      this.render(this.containerEl.children[1]);
+    }).open();
+  }
+  async addGroup(name, icon) {
+    const file = this.app.vault.getAbstractFileByPath("resources.md");
+    let content = "";
+    if (file) {
+      content = await this.app.vault.read(file);
+      content += "\n\n";
+    }
+    content += `## ${icon} ${name}`;
+    if (file) {
+      await this.app.vault.modify(file, content);
+    } else {
+      await this.app.vault.create("resources.md", content);
+    }
+    new import_obsidian9.Notice(`\u0413\u0440\u0443\u043F\u043F\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430`);
+  }
+  async addResource(groupName, name, url, icon) {
+    const file = this.app.vault.getAbstractFileByPath("resources.md");
+    if (!file) {
+      new import_obsidian9.Notice("\u0424\u0430\u0439\u043B resources.md \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D");
+      return;
+    }
+    let content = await this.app.vault.read(file);
+    const lines = content.split("\n");
+    let insertIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith("##")) {
+        const headerText = line.replace(/^##\s*/, "").trim();
+        const parts = headerText.split(/\s+/);
+        const actualName = parts.slice(parts[0].match(/^[^\w\s]/) ? 1 : 0).join(" ");
+        if (actualName === groupName) {
+          insertIndex = i;
+          break;
+        }
+      }
+    }
+    if (insertIndex === -1) {
+      new import_obsidian9.Notice("\u0413\u0440\u0443\u043F\u043F\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430: " + groupName);
+      return;
+    }
+    let insertPos = insertIndex + 1;
+    while (insertPos < lines.length && lines[insertPos].trim() !== "" && !lines[insertPos].trim().startsWith("##")) {
+      insertPos++;
+    }
+    const newLine = `- [${icon}](${url}) ${name}`;
+    lines.splice(insertPos, 0, newLine);
+    await this.app.vault.modify(file, lines.join("\n"));
+    new import_obsidian9.Notice(`\u0420\u0435\u0441\u0443\u0440\u0441 "${name}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D`);
+  }
+  async parseResourcesFile() {
+    const file = this.app.vault.getAbstractFileByPath("resources.md");
+    if (!file)
+      return this.getDefaultGroups();
+    try {
+      const content = await this.app.vault.read(file);
+      return this.parseResourcesContent(content);
+    } catch (e) {
+      console.error("Error reading resources.md:", e);
+      return this.getDefaultGroups();
+    }
+  }
+  getDefaultGroups() {
+    return [
+      {
+        name: "\u0410\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
+        icon: "\u2699\uFE0F",
+        items: []
+      },
+      {
+        name: "\u0420\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430",
+        icon: "\u{1F527}",
+        items: []
+      },
+      {
+        name: "\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u044B\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B",
+        icon: "\u{1F4DA}",
+        items: []
+      }
+    ];
+  }
+  parseResourcesContent(content) {
+    var _a;
+    const groups = [];
+    const lines = content.split("\n");
+    let currentGroup = null;
+    for (const line of lines) {
+      const groupMatch = line.match(/^##\s*(.+)$/);
+      if (groupMatch) {
+        if (currentGroup) {
+          groups.push(currentGroup);
+        }
+        const parts = groupMatch[1].trim().split(/\s+/);
+        const icon = parts[0].match(/^[^\w\s]/) ? parts[0] : "";
+        const name = icon ? parts.slice(1).join(" ") : groupMatch[1].trim();
+        currentGroup = { name, icon, items: [] };
+        continue;
+      }
+      const itemMatch = line.match(/^-\s*\[([^\]]+)\]\(([^)]+)\)\s*(.+)?$/);
+      if (itemMatch && currentGroup) {
+        currentGroup.items.push({
+          icon: itemMatch[1],
+          url: itemMatch[2],
+          name: ((_a = itemMatch[3]) == null ? void 0 : _a.trim()) || itemMatch[2]
+        });
+      }
+    }
+    if (currentGroup) {
+      groups.push(currentGroup);
+    }
+    return groups.length > 0 ? groups : this.getDefaultGroups();
+  }
+  get containerEl() {
+    var _a, _b;
+    return ((_b = (_a = this.app.workspace.getLeavesOfType("markdown")[0]) == null ? void 0 : _a.view) == null ? void 0 : _b.containerEl) || document.body;
+  }
+};
+var ICON_LIST = ["\u{1F4C1}", "\u{1F4C2}", "\u2699\uFE0F", "\u{1F527}", "\u{1F517}", "\u{1F310}", "\u{1F4DA}", "\u{1F4DD}", "\u{1F4CA}", "\u{1F4C8}", "\u{1F4BC}", "\u{1F3E0}", "\u{1F3AF}", "\u{1F4CB}", "\u{1F5C2}\uFE0F", "\u{1F5A5}\uFE0F", "\u{1F4F1}", "\u2601\uFE0F", "\u{1F512}", "\u{1F6E0}\uFE0F"];
+var AddGroupModal = class extends import_obsidian9.Modal {
+  constructor(app, onSubmit) {
+    super(app);
+    this.selectedIcon = "\u{1F4C1}";
+    this.onSubmit = onSubmit;
+  }
+  onOpen() {
+    var _a;
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443" });
+    const iconContainer = contentEl.createDiv({ cls: "icon-picker-container" });
+    iconContainer.createEl("p", { text: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u043A\u043E\u043D\u043A\u0443:", cls: "icon-picker-label" });
+    const iconGrid = iconContainer.createDiv({ cls: "icon-picker-grid" });
+    ICON_LIST.forEach((icon) => {
+      const iconBtn = iconGrid.createEl("button", {
+        cls: "icon-picker-btn",
+        text: icon
+      });
+      iconBtn.onclick = () => {
+        this.selectedIcon = icon;
+        iconGrid.querySelectorAll(".icon-picker-btn").forEach((b) => b.removeClass("selected"));
+        iconBtn.addClass("selected");
+      };
+    });
+    (_a = iconGrid.querySelector("button")) == null ? void 0 : _a.addClass("selected");
+    const nameInput = new import_obsidian9.TextComponent(contentEl);
+    nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0433\u0440\u0443\u043F\u043F\u044B");
+    nameInput.inputEl.style.width = "100%";
+    nameInput.inputEl.style.marginBottom = "20px";
+    const btnContainer = contentEl.createDiv();
+    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+      const name = nameInput.getValue().trim();
+      if (name) {
+        this.onSubmit(name, this.selectedIcon);
+        this.close();
+      }
+    });
+  }
+};
+var AddResourceModal = class extends import_obsidian9.Modal {
+  constructor(app, onSubmit) {
+    super(app);
+    this.selectedIcon = "\u{1F517}";
+    this.onSubmit = onSubmit;
+  }
+  onOpen() {
+    var _a;
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0435\u0441\u0443\u0440\u0441" });
+    const iconContainer = contentEl.createDiv({ cls: "icon-picker-container" });
+    iconContainer.createEl("p", { text: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u043A\u043E\u043D\u043A\u0443:", cls: "icon-picker-label" });
+    const iconGrid = iconContainer.createDiv({ cls: "icon-picker-grid" });
+    ICON_LIST.forEach((icon) => {
+      const iconBtn = iconGrid.createEl("button", {
+        cls: "icon-picker-btn",
+        text: icon
+      });
+      iconBtn.onclick = () => {
+        this.selectedIcon = icon;
+        iconGrid.querySelectorAll(".icon-picker-btn").forEach((b) => b.removeClass("selected"));
+        iconBtn.addClass("selected");
+      };
+    });
+    (_a = iconGrid.querySelector("button")) == null ? void 0 : _a.addClass("selected");
+    const nameInput = new import_obsidian9.TextComponent(contentEl);
+    nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435");
+    nameInput.inputEl.style.width = "100%";
+    nameInput.inputEl.style.marginBottom = "10px";
+    const urlInput = new import_obsidian9.TextComponent(contentEl);
+    urlInput.setPlaceholder("URL \u0438\u043B\u0438 \u043F\u0443\u0442\u044C \u043A \u043F\u0430\u043F\u043A\u0435 (https://... \u0438\u043B\u0438 C:...)");
+    urlInput.inputEl.style.width = "100%";
+    urlInput.inputEl.style.marginBottom = "20px";
+    const btnContainer = contentEl.createDiv();
+    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+      const name = nameInput.getValue().trim();
+      const url = urlInput.getValue().trim();
+      if (name && url) {
+        this.onSubmit(name, url, this.selectedIcon);
+        this.close();
+      }
+    });
+  }
+};
+
 // src/main-page/MainPageView.ts
 var MAIN_PAGE_VIEW_TYPE = "monitoring-main-page-view";
-var MainPageView = class extends import_obsidian9.ItemView {
+var MainPageView = class extends import_obsidian10.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.activeTab = "dashboard";
@@ -1812,6 +2153,7 @@ var MainPageView = class extends import_obsidian9.ItemView {
       this.plugin.settings.incidentsFolder,
       this.plugin.settings.simpleNotesFolder
     );
+    this.resourcesView = new ResourcesView(this.app);
   }
   getViewType() {
     return MAIN_PAGE_VIEW_TYPE;
@@ -1872,14 +2214,18 @@ var MainPageView = class extends import_obsidian9.ItemView {
       } else if (this.activeTab === "notes") {
         const notesView = new NotesView(this.app, data.notes);
         notesView.render(container);
+      } else if (this.activeTab === "resources") {
+        this.resourcesView.render(container);
       }
     } finally {
       this.isRefreshing = false;
     }
   }
   renderHeader(container) {
+    if (container.querySelector(".main-page-header-container"))
+      return;
     const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.3.0", cls: "main-page-header" });
+    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.3.1", cls: "main-page-header" });
     const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
     btnGroup.createEl("button", {
       cls: "monitoring-refresh-btn",
@@ -1895,7 +2241,7 @@ var MainPageView = class extends import_obsidian9.ItemView {
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443", async (name) => {
       const file = await this.plugin.templateManager.createTaskNote(name);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian9.Notice('\u0417\u0430\u0434\u0430\u0447\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
+      new import_obsidian10.Notice('\u0417\u0430\u0434\u0430\u0447\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
       this.refreshContent();
     });
     btnGroup.createEl("button", {
@@ -1904,7 +2250,7 @@ var MainPageView = class extends import_obsidian9.ItemView {
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442", async (name) => {
       const file = await this.plugin.templateManager.createProjectNote(name);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian9.Notice('\u041F\u0440\u043E\u0435\u043A\u0442 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D!');
+      new import_obsidian10.Notice('\u041F\u0440\u043E\u0435\u043A\u0442 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D!');
       this.refreshContent();
     });
     btnGroup.createEl("button", {
@@ -1913,7 +2259,7 @@ var MainPageView = class extends import_obsidian9.ItemView {
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u043C\u0435\u0442\u043A\u0443", async (name) => {
       const file = await this.plugin.templateManager.createSimpleNote(name);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian9.Notice('\u0417\u0430\u043C\u0435\u0442\u043A\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
+      new import_obsidian10.Notice('\u0417\u0430\u043C\u0435\u0442\u043A\u0430 "' + name + '" \u0441\u043E\u0437\u0434\u0430\u043D\u0430!');
       this.refreshContent();
     });
     btnGroup.createEl("button", {
@@ -1923,9 +2269,9 @@ var MainPageView = class extends import_obsidian9.ItemView {
       try {
         const file = await this.plugin.dailyService.createDailyNote();
         await this.app.workspace.getLeaf(false).openFile(file);
-        new import_obsidian9.Notice("\u0415\u0436\u0435\u0434\u043D\u0435\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u0442\u043A\u0430 \u043E\u0442\u043A\u0440\u044B\u0442\u0430!");
+        new import_obsidian10.Notice("\u0415\u0436\u0435\u0434\u043D\u0435\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u0442\u043A\u0430 \u043E\u0442\u043A\u0440\u044B\u0442\u0430!");
       } catch (e) {
-        new import_obsidian9.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
+        new import_obsidian10.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
       }
     };
   }
@@ -1935,14 +2281,17 @@ var MainPageView = class extends import_obsidian9.ItemView {
       { id: "dashboard", label: "\u0414\u0430\u0448\u0431\u043E\u0440\u0434" },
       { id: "kanban", label: "\u041A\u0430\u043D\u0431\u0430\u043D" },
       { id: "calendar", label: "\u041A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C" },
-      { id: "notes", label: "\u0417\u0430\u043C\u0435\u0442\u043A\u0438" }
+      { id: "notes", label: "\u0417\u0430\u043C\u0435\u0442\u043A\u0438" },
+      { id: "resources", label: "\u0420\u0435\u0441\u0443\u0440\u0441\u044B" }
     ];
     tabs.forEach((tab) => {
       const tabEl = tabsContainer.createDiv({
         cls: "monitoring-tab-item " + (this.activeTab === tab.id ? "is-active" : "")
       });
       tabEl.createSpan({ text: tab.label });
-      tabEl.onclick = () => {
+      tabEl.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
         this.activeTab = tab.id;
         this.refreshContent();
       };
@@ -1952,11 +2301,11 @@ var MainPageView = class extends import_obsidian9.ItemView {
     new NamingModal(this.app, title, onSubmit).open();
   }
   async generateWeeklyReport() {
-    new import_obsidian9.Notice("\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043E\u0442\u0447\u0435\u0442\u0430 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E...");
+    new import_obsidian10.Notice("\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043E\u0442\u0447\u0435\u0442\u0430 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E...");
     try {
       const data = await this.dataService.fetchVaultData();
       if (data.incidents.length === 0) {
-        new import_obsidian9.Notice("\u041D\u0435\u0442 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430.");
+        new import_obsidian10.Notice("\u041D\u0435\u0442 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430.");
         return;
       }
       let combinedText = "";
@@ -1969,7 +2318,7 @@ var MainPageView = class extends import_obsidian9.ItemView {
         }
       }
       if (!combinedText) {
-        new import_obsidian9.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u0432\u043B\u0435\u0447\u044C \u0434\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F \u043E\u0442\u0447\u0435\u0442\u0430.");
+        new import_obsidian10.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u0432\u043B\u0435\u0447\u044C \u0434\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F \u043E\u0442\u0447\u0435\u0442\u0430.");
         return;
       }
       const report = await this.plugin.llmService.generateWeeklyReport(combinedText);
@@ -1978,16 +2327,16 @@ var MainPageView = class extends import_obsidian9.ItemView {
       const fileContent = "# \u0415\u0436\u0435\u043D\u0435\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u043E\u0442\u0447\u0435\u0442 \u043E\u0442 " + dateStr + "\n\n" + report + "\n\n## \u041F\u0440\u043E\u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0435 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u044B\n" + data.incidents.slice(0, 10).map((i) => "- [[" + i.path + "|" + i.name + "]]").join("\n");
       const file = await this.app.vault.create(fileName, fileContent);
       await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian9.Notice("\u041E\u0442\u0447\u0435\u0442 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u043D!");
+      new import_obsidian10.Notice("\u041E\u0442\u0447\u0435\u0442 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u043D!");
     } catch (error) {
       console.error(error);
-      new import_obsidian9.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: " + error.message);
+      new import_obsidian10.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: " + error.message);
     }
   }
   async onClose() {
   }
 };
-var NamingModal = class extends import_obsidian9.Modal {
+var NamingModal = class extends import_obsidian10.Modal {
   constructor(app, title, onSubmit) {
     super(app);
     this.name = "";
@@ -1999,13 +2348,13 @@ var NamingModal = class extends import_obsidian9.Modal {
       this.onSubmit(this.name);
       this.close();
     } else {
-      new import_obsidian9.Notice("\u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435");
+      new import_obsidian10.Notice("\u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435");
     }
   }
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: this.title });
-    const input = new import_obsidian9.TextComponent(contentEl);
+    const input = new import_obsidian10.TextComponent(contentEl);
     input.setPlaceholder("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.onChange((value) => this.name = value);
     input.inputEl.style.width = "100%";
@@ -2014,7 +2363,7 @@ var NamingModal = class extends import_obsidian9.Modal {
       input.inputEl.focus();
     });
     const btnContainer = contentEl.createDiv({ cls: "modal-button-container" });
-    new import_obsidian9.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => this.submit());
+    new import_obsidian10.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => this.submit());
     input.inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -2029,7 +2378,7 @@ var NamingModal = class extends import_obsidian9.Modal {
 };
 
 // src/main.ts
-var MonitoringPlugin = class extends import_obsidian10.Plugin {
+var MonitoringPlugin = class extends import_obsidian11.Plugin {
   async onload() {
     await this.loadSettings();
     this.llmService = new LLMService(this.settings);
@@ -2091,16 +2440,16 @@ var MonitoringPlugin = class extends import_obsidian10.Plugin {
             if (!fm["tracked_subjects"].includes(topic))
               fm["tracked_subjects"].push(topic);
           });
-          new import_obsidian10.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
+          new import_obsidian11.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
           input.value = "";
         } else {
-          new import_obsidian10.Notice("\u0424\u0430\u0439\u043B \u0434\u0430\u0448\u0431\u043E\u0440\u0434\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D!");
+          new import_obsidian11.Notice("\u0424\u0430\u0439\u043B \u0434\u0430\u0448\u0431\u043E\u0440\u0434\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D!");
         }
       };
     });
     this.registerMarkdownCodeBlockProcessor("monitoring-duration", (source, el, ctx) => {
       const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-      if (!(file instanceof import_obsidian10.TFile))
+      if (!(file instanceof import_obsidian11.TFile))
         return;
       const child = new MonitoringDurationChild(el, this, file);
       ctx.addChild(child);
@@ -2130,7 +2479,7 @@ var MonitoringPlugin = class extends import_obsidian10.Plugin {
   }
   async processEmails() {
     var _a;
-    new import_obsidian10.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
+    new import_obsidian11.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
     try {
       const allEmails = await this.outlookService.fetchEmails();
       allEmails.reverse();
@@ -2138,7 +2487,7 @@ var MonitoringPlugin = class extends import_obsidian10.Plugin {
       if (newEmails.length === 0)
         newEmails = allEmails.slice(Math.max(allEmails.length - 10, 0));
       if (newEmails.length === 0) {
-        new import_obsidian10.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
+        new import_obsidian11.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
         return;
       }
       const dashboardFile = this.app.vault.getAbstractFileByPath(this.settings.dashboardNoteName);
@@ -2172,10 +2521,10 @@ var MonitoringPlugin = class extends import_obsidian10.Plugin {
           this.settings.scannedEmailIds.push(email.entryId);
       }
       await this.saveSettings();
-      new import_obsidian10.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
+      new import_obsidian11.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
     } catch (error) {
       console.error(error);
-      new import_obsidian10.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
+      new import_obsidian11.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
     }
   }
   onunload() {
@@ -2235,18 +2584,18 @@ ${newRow}`;
         await this.app.vault.createFolder(folderName);
       const newPath = `${folderName}/${file.name}`;
       if (this.app.vault.getAbstractFileByPath(newPath)) {
-        new import_obsidian10.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
+        new import_obsidian11.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
         return;
       }
       await this.app.fileManager.renameFile(file, newPath);
-      new import_obsidian10.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
+      new import_obsidian11.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
     } catch (e) {
       console.error(e);
-      new import_obsidian10.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
+      new import_obsidian11.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
     }
   }
 };
-var MonitoringDurationChild = class extends import_obsidian10.MarkdownRenderChild {
+var MonitoringDurationChild = class extends import_obsidian11.MarkdownRenderChild {
   constructor(containerEl, plugin, file) {
     super(containerEl);
     this.plugin = plugin;
@@ -2466,7 +2815,7 @@ var MonitoringDurationChild = class extends import_obsidian10.MarkdownRenderChil
     renderCollapsed();
   }
 };
-var TagModal = class extends import_obsidian10.Modal {
+var TagModal = class extends import_obsidian11.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.query = "";
@@ -2475,7 +2824,7 @@ var TagModal = class extends import_obsidian10.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0442\u0435\u0433" });
-    const input = new import_obsidian10.TextComponent(contentEl);
+    const input = new import_obsidian11.TextComponent(contentEl);
     input.setPlaceholder("\u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u0432\u0432\u043E\u0434\u0438\u0442\u044C \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
     input.inputEl.focus();
@@ -2510,7 +2859,7 @@ var TagModal = class extends import_obsidian10.Modal {
     this.contentEl.empty();
   }
 };
-var ResourceModal = class extends import_obsidian10.Modal {
+var ResourceModal = class extends import_obsidian11.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.link = "";
@@ -2520,15 +2869,15 @@ var ResourceModal = class extends import_obsidian10.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u0440\u0435\u0441\u0443\u0440\u0441" });
-    const lInput = new import_obsidian10.TextComponent(contentEl);
+    const lInput = new import_obsidian11.TextComponent(contentEl);
     lInput.setPlaceholder("http://...");
     lInput.onChange((val) => this.link = val);
     lInput.inputEl.style.width = "100%";
-    const dInput = new import_obsidian10.TextComponent(contentEl);
+    const dInput = new import_obsidian11.TextComponent(contentEl);
     dInput.setPlaceholder("\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435...");
     dInput.onChange((val) => this.description = val);
     dInput.inputEl.style.width = "100%";
-    new import_obsidian10.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian11.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       if (this.link) {
         this.onSubmit(this.link, this.description);
         this.close();
@@ -2539,7 +2888,7 @@ var ResourceModal = class extends import_obsidian10.Modal {
     this.contentEl.empty();
   }
 };
-var NewTaskModal = class extends import_obsidian10.Modal {
+var NewTaskModal = class extends import_obsidian11.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.taskName = "";
@@ -2548,14 +2897,14 @@ var NewTaskModal = class extends import_obsidian10.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443" });
-    const input = new import_obsidian10.TextComponent(contentEl);
+    const input = new import_obsidian11.TextComponent(contentEl);
     input.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.inputEl.style.width = "100%";
     input.onChange((val) => this.taskName = val);
     requestAnimationFrame(() => {
       input.inputEl.focus();
     });
-    new import_obsidian10.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian11.ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" })).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => {
       if (this.taskName) {
         this.onSubmit(this.taskName);
         this.close();

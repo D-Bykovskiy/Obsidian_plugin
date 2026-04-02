@@ -62,11 +62,9 @@ export class DailyService {
 
     private getDefaultRoutines(): DayRoutines {
         return {
-            daily_morning: [
+            every_day: [
                 { name: 'Проверить почту', time: '09:00' },
-                { name: 'Обзор задач на день', time: '09:30' }
-            ],
-            daily_evening: [
+                { name: 'Обзор задач на день', time: '09:30' },
                 { name: 'Актуализировать статусы задач', time: '17:00' }
             ],
             mon: [],
@@ -85,7 +83,10 @@ export class DailyService {
     }
 
     private parseRoutinesContent(content: string): DayRoutines {
-        const routines: DayRoutines = this.getDefaultRoutines();
+        const routines: DayRoutines = {
+            every_day: [],
+            mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: []
+        };
         
         const lines = content.split('\n');
         let currentDay = '';
@@ -195,10 +196,9 @@ export class DailyService {
         const dayName = this.getDayName(today);
         const weekNumber = this.getWeekNumber(today);
 
-        const morningRoutine = routines.daily_morning || [];
-        const eveningRoutine = routines.daily_evening || [];
+        const everyDayRoutine = routines.every_day || [];
         const dayRoutine = routines[dayKey] || [];
-        const allDayRoutine = [...morningRoutine, ...dayRoutine, ...eveningRoutine];
+        const allDayRoutine = [...everyDayRoutine, ...dayRoutine];
 
         let tasksList = '';
         if (todayTasks.length === 0) {
@@ -212,16 +212,6 @@ export class DailyService {
             }
         }
 
-        let routineList = '';
-        if (dayRoutine.length === 0) {
-            routineList = '*Нет регулярных задач на этот день*';
-        } else {
-            for (const task of dayRoutine) {
-                const timeStr = task.time ? ` [${task.time}]` : '';
-                routineList += `- ${task.name}${timeStr}\n`;
-            }
-        }
-
         let scheduleList = '';
         if (allDayRoutine.length === 0) {
             scheduleList = '*Расписание не задано*';
@@ -232,7 +222,7 @@ export class DailyService {
                 return a.time.localeCompare(b.time);
             });
             for (const task of sorted) {
-                scheduleList += `- ${task.time || '--:--'} ${task.name}\n`;
+                scheduleList += `- [ ] ${task.name}${task.time ? ` [${task.time}]` : ''}\n`;
             }
         }
 
@@ -246,23 +236,13 @@ export class DailyService {
 
 ---
 
-## 🌅 Утро
-${morningRoutine.length > 0 ? morningRoutine.map(t => `- [ ] ${t.name}${t.time ? ` [${t.time}]` : ''}`).join('\n') : '*Нет задач*'}
-
----
-
-## 📋 Регулярные задачи (${dayName})
-${routineList}
+## 🕐 Расписание дня
+${scheduleList}
 
 ---
 
 ## ✅ Задачи на сегодня
 ${tasksList}
-
----
-
-## 🕐 Расписание дня
-${scheduleList}
 
 ---
 

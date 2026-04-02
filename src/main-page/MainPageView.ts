@@ -5,13 +5,15 @@ import { DashboardView } from './DashboardView';
 import { KanbanView } from './KanbanView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
+import { ResourcesView } from './ResourcesView';
 
 export const MAIN_PAGE_VIEW_TYPE = 'monitoring-main-page-view';
 
 export class MainPageView extends ItemView {
     plugin: MonitoringPlugin;
     dataService: DataService;
-    activeTab: 'dashboard' | 'kanban' | 'calendar' | 'notes' = 'dashboard';
+    resourcesView: ResourcesView;
+    activeTab: 'dashboard' | 'kanban' | 'calendar' | 'notes' | 'resources' = 'dashboard';
     calendarWeekOffset: number = 0;
     currentFilterId: number | null = null;
 
@@ -23,6 +25,7 @@ export class MainPageView extends ItemView {
             this.plugin.settings.incidentsFolder,
             this.plugin.settings.simpleNotesFolder
         );
+        this.resourcesView = new ResourcesView(this.app);
     }
 
     getViewType() {
@@ -92,6 +95,8 @@ export class MainPageView extends ItemView {
             } else if (this.activeTab === 'notes') {
                 const notesView = new NotesView(this.app, data.notes);
                 notesView.render(container);
+            } else if (this.activeTab === 'resources') {
+                this.resourcesView.render(container);
             }
 
         } finally {
@@ -100,8 +105,10 @@ export class MainPageView extends ItemView {
     }
 
     private renderHeader(container: Element): void {
+        if (container.querySelector('.main-page-header-container')) return;
+        
         const headerContainer = container.createDiv({ cls: 'main-page-header-container' });
-        headerContainer.createEl('h2', { text: 'Панель управления v1.3.0', cls: 'main-page-header' });
+        headerContainer.createEl('h2', { text: 'Панель управления v1.3.1', cls: 'main-page-header' });
         
         const btnGroup = headerContainer.createDiv({ cls: 'monitoring-header-btns' });
         
@@ -166,7 +173,8 @@ export class MainPageView extends ItemView {
             { id: 'dashboard', label: 'Дашборд' },
             { id: 'kanban', label: 'Канбан' },
             { id: 'calendar', label: 'Календарь' },
-            { id: 'notes', label: 'Заметки' }
+            { id: 'notes', label: 'Заметки' },
+            { id: 'resources', label: 'Ресурсы' }
         ];
 
         tabs.forEach(tab => {
@@ -174,7 +182,9 @@ export class MainPageView extends ItemView {
                 cls: 'monitoring-tab-item ' + (this.activeTab === tab.id ? 'is-active' : '')
             });
             tabEl.createSpan({ text: tab.label });
-            tabEl.onclick = () => {
+            tabEl.onclick = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 this.activeTab = tab.id as any;
                 this.refreshContent();
             };

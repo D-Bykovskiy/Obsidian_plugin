@@ -3,7 +3,7 @@
 > **⚠️ ВАЖНО: Перед началом работы ПРОЧТИ этот файл!**
 > Это инструкция по работе с проектом. Всегда сначала читай AGENTS.md, затем приступай к задаче.
 
-**Проект:** Monitoring Plugin v1.3.0  
+**Проект:** Monitoring Plugin v1.3.1  
 **Репозиторий:** https://github.com/D-Bykovskiy/Obsidian_plugin  
 **Vault для тестирования:** `C:\Users\talyu\Desktop\Obsidian_OMIS`  
 **Папка плагина в vault:** `C:\Users\talyu\Desktop\Obsidian_OMIS\.obsidian\plugins\Plagin-omis`
@@ -16,12 +16,13 @@
 Plagin_omis/
 ├── src/
 │   ├── main.ts                    # Точка входа, ribbon-кнопки, embedded UI
-│   ├── main-page/                 # Dashboard, Kanban, Calendar, Notes views
+│   ├── main-page/                 # Dashboard, Kanban, Calendar, Notes, Resources views
 │   │   ├── MainPageView.ts        # Главная панель (вкладки)
 │   │   ├── DashboardView.ts       # Дашборд с метриками
 │   │   ├── KanbanView.ts          # Канбан-доска (drag-and-drop)
 │   │   ├── CalendarView.ts        # Календарь на неделю
 │   │   ├── NotesView.ts           # Список заметок
+│   │   ├── ResourcesView.ts      # Вкладка ресурсов (ссылки, папки)
 │   │   ├── DataService.ts         # Получение данных из хранилища
 │   │   ├── BaseView.ts            # Базовый класс для views
 │   │   └── types.ts               # TypeScript интерфейсы
@@ -193,6 +194,40 @@ daily_morning:
 tue:
   - "Подготовка отчёта"
 ```
+
+---
+
+## 📂 Resources (Ресурсы)
+
+### Файлы:
+- `src/main-page/ResourcesView.ts` — UI вкладки "Ресурсы"
+- `resources.md` — файл с настройками ресурсов в корне хранилища
+
+### Формат resources.md:
+```markdown
+# Ресурсы
+
+## ⚙️ Администрирование
+- [🔗](https://example.com) Ссылка
+- [📁](C:\path\to\folder) Папка
+
+## 🔧 Разработка
+- [🖥️](https://github.com) GitHub
+```
+
+### Особенности:
+- Поддержка URL (http://, https://) — открываются в браузере
+- Поддержка абсолютных путей Windows (C:\...) — открываются в проводнике
+- Поддержка относительных путей — открываются относительно хранилища
+- Выбор иконки из предустановленного списка при создании
+
+### Список иконок:
+```
+📁 📂 ⚙️ 🔧 🔗 🌐 📚 📝 📊 📈 💼 🏠 🎯 📋 🗂️ 🖥️ 📱 ☁️ 🔒 🛠️
+```
+
+### Контекстное меню:
+- Правая кнопка мыши на ресурсе → удаление
 
 ---
 
