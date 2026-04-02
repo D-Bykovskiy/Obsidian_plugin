@@ -2,6 +2,7 @@ import { Plugin, Notice, TFile, Modal, TextComponent, ButtonComponent, MarkdownR
 import { LLMService } from './llm/LLMService';
 import { OutlookService } from './outlook/OutlookService';
 import { TemplateManager } from './notes/TemplateManager';
+import { DailyService } from './daily/DailyService';
 import { MonitoringSettingTab, DEFAULT_SETTINGS, MonitoringPluginSettings } from './settings/SettingsTab';
 import { ChatView, CHAT_VIEW_TYPE } from './chat/ChatView';
 import { MainPageView, MAIN_PAGE_VIEW_TYPE } from './main-page/MainPageView';
@@ -11,6 +12,7 @@ export default class MonitoringPlugin extends Plugin {
     llmService: LLMService;
     outlookService: OutlookService;
     templateManager: TemplateManager;
+    dailyService: DailyService;
 
     async onload() {
         await this.loadSettings();
@@ -19,6 +21,7 @@ export default class MonitoringPlugin extends Plugin {
         this.llmService = new LLMService(this.settings);
         this.outlookService = new OutlookService(this.settings, this.app);
         this.templateManager = new TemplateManager(this.app, this.settings);
+        this.dailyService = new DailyService(this.app, this.settings);
 
         // Register Chat View
         this.registerView(

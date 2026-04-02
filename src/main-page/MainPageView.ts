@@ -101,7 +101,7 @@ export class MainPageView extends ItemView {
 
     private renderHeader(container: Element): void {
         const headerContainer = container.createDiv({ cls: 'main-page-header-container' });
-        headerContainer.createEl('h2', { text: 'Панель управления v1.2.1', cls: 'main-page-header' });
+        headerContainer.createEl('h2', { text: 'Панель управления v1.3.0', cls: 'main-page-header' });
         
         const btnGroup = headerContainer.createDiv({ cls: 'monitoring-header-btns' });
         
@@ -144,6 +144,19 @@ export class MainPageView extends ItemView {
             new Notice('Заметка "' + name + '" создана!');
             this.refreshContent();
         });
+
+        btnGroup.createEl('button', {
+            cls: 'monitoring-glass-btn monitoring-daily-btn',
+            text: '📅 Daily'
+        }).onclick = async () => {
+            try {
+                const file = await this.plugin.dailyService.createDailyNote();
+                await this.app.workspace.getLeaf(false).openFile(file);
+                new Notice('Ежедневная заметка открыта!');
+            } catch (e) {
+                new Notice('Ошибка: ' + e.message);
+            }
+        };
     }
 
     private renderTabs(container: Element): void {

@@ -3,7 +3,7 @@
 > **⚠️ ВАЖНО: Перед началом работы ПРОЧТИ этот файл!**
 > Это инструкция по работе с проектом. Всегда сначала читай AGENTS.md, затем приступай к задаче.
 
-**Проект:** Monitoring Plugin v1.2.1  
+**Проект:** Monitoring Plugin v1.3.0  
 **Репозиторий:** https://github.com/D-Bykovskiy/Obsidian_plugin  
 **Vault для тестирования:** `C:\Users\talyu\Desktop\Obsidian_OMIS`  
 **Папка плагина в vault:** `C:\Users\talyu\Desktop\Obsidian_OMIS\.obsidian\plugins\Plagin-omis`
@@ -169,6 +169,30 @@ POST {baseUrl}/v1/chat/completions
 | Изменить шаблон заметки | `src/notes/TemplateManager.ts` |
 | Изменить стили | `styles.css` |
 | Добавить настройку | `src/settings/SettingsTab.ts` |
+| Daily Notes (кнопка, сервис) | `src/daily/DailyService.ts` |
+
+---
+
+## 📅 Daily Notes
+
+### Файлы:
+- `src/daily/DailyService.ts` — логика создания ежедневных заметок
+- `routines.md` — расписание регулярных задач в хранилище
+
+### Как работает:
+1. Кнопка "📅 Daily" в панели управления
+2. Создаёт заметку `daily/YYYY-MM-DD.md`
+3. Парсит `routines.md` для регулярных задач
+4. Подтягивает задачи с deadline = сегодня
+
+### Редактирование расписания:
+Файл `routines.md` в корне хранилища:
+```markdown
+daily_morning:
+  - "Проверить почту" | 09:00
+tue:
+  - "Подготовка отчёта"
+```
 
 ---
 
