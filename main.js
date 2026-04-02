@@ -584,24 +584,32 @@ ${listItem}
     await this.app.vault.modify(parentFile, content);
   }
   async updateSubtaskStatusIcon(taskFile) {
+    var _a, _b;
     const files = this.app.vault.getMarkdownFiles();
     const taskBasename = taskFile.basename;
-    const taskContent = await this.app.vault.read(taskFile);
-    const newStatusMatch = taskContent.match(/^status:\s*["']?(.+?)["']?\s*$/m);
-    const newStatus = newStatusMatch ? newStatusMatch[1].trim() : "To Do";
+    const cache = this.app.metadataCache.getFileCache(taskFile);
+    const newStatus = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["status"]) || "To Do";
     const newIcon = this.getStatusIcon(newStatus);
+    console.log("[DEBUG] updateSubtaskStatusIcon called");
+    console.log("[DEBUG] taskBasename:", taskBasename);
+    console.log("[DEBUG] cache status:", (_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["status"]);
+    console.log("[DEBUG] newStatus:", newStatus);
+    console.log("[DEBUG] newIcon:", newIcon);
     for (const file of files) {
       if (file.path === taskFile.path)
         continue;
       const content = await this.app.vault.read(file);
       if (content.includes(`[[${taskBasename}]]`)) {
+        console.log("[DEBUG] Found in file:", file.path);
         const regex = new RegExp(`(- [\u2705\u{1F504}\u2B1C] \\[\\[${taskBasename}\\]\\][^\\n]*)`);
         const match = content.match(regex);
+        console.log("[DEBUG] regex match:", match ? "yes" : "no");
         if (match) {
           const oldLine = match[1];
           const newLine = oldLine.replace(/^- [✅🔄⬜]/, `- ${newIcon}`);
           const updatedContent = content.replace(oldLine, newLine);
           await this.app.vault.modify(file, updatedContent);
+          console.log("[DEBUG] Updated!");
         }
       }
     }

@@ -278,9 +278,8 @@ cssclasses: [hide-properties]
         const files = this.app.vault.getMarkdownFiles();
         const taskBasename = taskFile.basename;
         
-        const taskContent = await this.app.vault.read(taskFile);
-        const newStatusMatch = taskContent.match(/^status:\s*["']?(.+?)["']?\s*$/m);
-        const newStatus = newStatusMatch ? newStatusMatch[1].trim() : 'To Do';
+        const cache = this.app.metadataCache.getFileCache(taskFile);
+        const newStatus = cache?.frontmatter?.['status'] || 'To Do';
         const newIcon = this.getStatusIcon(newStatus);
         
         for (const file of files) {
