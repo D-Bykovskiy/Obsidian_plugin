@@ -295,7 +295,12 @@ class MonitoringDurationChild extends MarkdownRenderChild {
                 [{ l: 'План', v: 'To Do', i: '🎯' }, { l: 'В работе', v: 'In Progress', i: '⚡' }, { l: 'Готово', v: 'Done', i: '✅' }].forEach(s => {
                     const b = statusRow.createEl('button', { cls: 'monitoring-glass-btn status-segment-btn', text: `${s.i} ${s.l}` });
                     if (cache?.frontmatter?.['status'] === s.v) b.addClass('is-active-status');
-                    b.onclick = async () => { await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['status'] = s.v; }); };
+                    b.onclick = async () => { 
+                        await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['status'] = s.v; });
+                        if (this.file.basename.startsWith('Task-')) {
+                            await this.plugin.templateManager.updateSubtaskStatusIcon(this.file);
+                        }
+                    };
                 });
             }
 

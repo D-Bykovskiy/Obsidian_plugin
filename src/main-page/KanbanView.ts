@@ -1,6 +1,7 @@
 import { BaseView } from './BaseView';
 import { TaskData, ProjectData } from './types';
 import { DataService } from './DataService';
+import { TFile } from 'obsidian';
 
 interface KanbanStatus {
     id: string;
@@ -11,6 +12,7 @@ interface KanbanStatus {
 
 export class KanbanView extends BaseView {
     private dataService: DataService;
+    private templateManager: any;
     private tasks: TaskData[];
     private projects: ProjectData[];
     private onRefresh: () => void;
@@ -21,9 +23,10 @@ export class KanbanView extends BaseView {
         { id: 'done', label: 'Завершено', color: 'green', match: ['done', 'completed', 'завершен', 'выполнено'] }
     ];
 
-    constructor(app: any, dataService: DataService, tasks: TaskData[], projects: ProjectData[], onRefresh: () => void) {
+    constructor(app: any, dataService: DataService, templateManager: any, tasks: TaskData[], projects: ProjectData[], onRefresh: () => void) {
         super(app);
         this.dataService = dataService;
+        this.templateManager = templateManager;
         this.tasks = tasks;
         this.projects = projects;
         this.onRefresh = onRefresh;
@@ -97,7 +100,11 @@ export class KanbanView extends BaseView {
                 
                 const data = JSON.parse(rawData);
                 if (data.path && data.type === type) {
+                    const file = this.app.vault.getAbstractFileByPath(data.path);
                     await this.dataService.updateItemStatus(data.path, status.label);
+                    if (this.templateManager && file instanceof TFile && file.basename.startsWith('Task-')) {
+                        await this.templateManager.updateSubtaskStatusIcon(file);
+                    }
                     await new Promise(r => setTimeout(r, 400));
                     this.onRefresh();
                 }

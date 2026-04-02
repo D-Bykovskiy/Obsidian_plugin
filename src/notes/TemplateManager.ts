@@ -246,12 +246,15 @@ cssclasses: [hide-properties]
 
     async updateSubtaskTable(parentFile: TFile, taskFile: TFile): Promise<void> {
         let content = await this.app.vault.read(parentFile);
-        const cache = this.app.metadataCache.getFileCache(taskFile);
         
-        const status = cache?.frontmatter?.['status'] || 'To Do';
-        const deadline = cache?.frontmatter?.['deadline'] || 'Не задано';
-
+        const taskContent = await this.app.vault.read(taskFile);
+        const statusMatch = taskContent.match(/^status:\s*["']?(.+?)["']?\s*$/m);
+        const deadlineMatch = taskContent.match(/^deadline:\s*["']?(.+?)["']?\s*$/m);
+        
+        const status = statusMatch ? statusMatch[1].trim() : 'To Do';
+        const deadline = deadlineMatch ? deadlineMatch[1].trim() : 'Не задано';
         const statusIcon = this.getStatusIcon(status);
+        
         const header = "## 📋 Список подзадач";
         const listItem = `- ${statusIcon} [[${taskFile.basename}]] | ${status} | ${deadline}`;
 
@@ -269,6 +272,34 @@ cssclasses: [hide-properties]
         }
 
         await this.app.vault.modify(parentFile, content);
+    }
+
+    async updateSubtaskStatusIcon(taskFile: TFile): Promise<void> {
+        const files = this.app.vault.getMarkdownFiles();
+        const taskBasename = taskFile.basename;
+        
+        const taskContent = await this.app.vault.read(taskFile);
+        const newStatusMatch = taskContent.match(/^status:\s*["']?(.+?)["']?\s*$/m);
+        const newStatus = newStatusMatch ? newStatusMatch[1].trim() : 'To Do';
+        const newIcon = this.getStatusIcon(newStatus);
+        
+        for (const file of files) {
+            if (file.path === taskFile.path) continue;
+            
+            const content = await this.app.vault.read(file);
+            
+            if (content.includes(`[[${taskBasename}]]`)) {
+                const regex = new RegExp(`(- [✅🔄⬜] \\[\\[${taskBasename}\\]\\][^\\n]*)`);
+                const match = content.match(regex);
+                
+                if (match) {
+                    const oldLine = match[1];
+                    const newLine = oldLine.replace(/^- [✅🔄⬜]/, `- ${newIcon}`);
+                    const updatedContent = content.replace(oldLine, newLine);
+                    await this.app.vault.modify(file, updatedContent);
+                }
+            }
+        }
     }
 
     private getStatusIcon(status: string): string {

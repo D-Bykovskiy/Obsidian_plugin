@@ -74,6 +74,7 @@ export class MainPageView extends ItemView {
                 const kanbanView = new KanbanView(
                     this.app,
                     this.dataService,
+                    this.plugin.templateManager,
                     data.tasks,
                     data.projects,
                     () => this.refreshContent()
