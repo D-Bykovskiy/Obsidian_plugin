@@ -1629,7 +1629,7 @@ var MainPageView = class extends import_obsidian8.ItemView {
   }
   renderHeader(container) {
     const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.2.0", cls: "main-page-header" });
+    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.2.1", cls: "main-page-header" });
     const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
     btnGroup.createEl("button", {
       cls: "monitoring-refresh-btn",

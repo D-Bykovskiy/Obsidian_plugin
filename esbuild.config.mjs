@@ -16,7 +16,7 @@ const prod = (process.argv[2] === "production");
 
 // Тестовое хранилище
 const vaultPath = "C:\\Users\\talyu\\Desktop\\Obsidian_OMIS";
-const targetDir = `${vaultPath}\\.obsidian\\plugins\\monitoring-plugin`;
+const targetDir = `${vaultPath}\\.obsidian\\plugins\\Plagin-omis`;
 
 const copyPluginFiles = {
     name: 'copy-plugin-files',

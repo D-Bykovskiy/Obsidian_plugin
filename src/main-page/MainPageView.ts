@@ -101,7 +101,7 @@ export class MainPageView extends ItemView {
 
     private renderHeader(container: Element): void {
         const headerContainer = container.createDiv({ cls: 'main-page-header-container' });
-        headerContainer.createEl('h2', { text: 'Панель управления v1.2.0', cls: 'main-page-header' });
+        headerContainer.createEl('h2', { text: 'Панель управления v1.2.1', cls: 'main-page-header' });
         
         const btnGroup = headerContainer.createDiv({ cls: 'monitoring-header-btns' });
         
