@@ -584,32 +584,24 @@ ${listItem}
     await this.app.vault.modify(parentFile, content);
   }
   async updateSubtaskStatusIcon(taskFile) {
-    var _a, _b;
+    var _a;
     const files = this.app.vault.getMarkdownFiles();
     const taskBasename = taskFile.basename;
     const cache = this.app.metadataCache.getFileCache(taskFile);
     const newStatus = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["status"]) || "To Do";
     const newIcon = this.getStatusIcon(newStatus);
-    console.log("[DEBUG] updateSubtaskStatusIcon called");
-    console.log("[DEBUG] taskBasename:", taskBasename);
-    console.log("[DEBUG] cache status:", (_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["status"]);
-    console.log("[DEBUG] newStatus:", newStatus);
-    console.log("[DEBUG] newIcon:", newIcon);
     for (const file of files) {
       if (file.path === taskFile.path)
         continue;
       const content = await this.app.vault.read(file);
       if (content.includes(`[[${taskBasename}]]`)) {
-        console.log("[DEBUG] Found in file:", file.path);
         const regex = new RegExp(`(- [\u2705\u{1F504}\u2B1C] \\[\\[${taskBasename}\\]\\][^\\n]*)`);
         const match = content.match(regex);
-        console.log("[DEBUG] regex match:", match ? "yes" : "no");
         if (match) {
           const oldLine = match[1];
           const newLine = oldLine.replace(/^- [✅🔄⬜]/, `- ${newIcon}`);
           const updatedContent = content.replace(oldLine, newLine);
           await this.app.vault.modify(file, updatedContent);
-          console.log("[DEBUG] Updated!");
         }
       }
     }
@@ -1637,7 +1629,7 @@ var MainPageView = class extends import_obsidian8.ItemView {
   }
   renderHeader(container) {
     const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F", cls: "main-page-header" });
+    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.2.0", cls: "main-page-header" });
     const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
     btnGroup.createEl("button", {
       cls: "monitoring-refresh-btn",
