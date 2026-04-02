@@ -1,54 +1,107 @@
 # AGENTS.md — Инструкции для AI-агента
 
-## Проект: Monitoring Plugin v1.2.0
+**Проект:** Monitoring Plugin v1.2.0  
 **Репозиторий:** https://github.com/D-Bykovskiy/Obsidian_plugin  
 **Vault для тестирования:** `C:\Users\talyu\Desktop\Obsidian_OMIS`
 
 ---
 
-## Архитектура проекта
+## 🗂 Структура проекта
 
-### Стек технологий
-- **Язык:** TypeScript → JavaScript (esbuild)
-- **Фреймворк:** Obsidian API (плагин для десктопа)
-- **Python:** win32com для Outlook
-- **LLM:** OpenAI-compatible API
-
-### Структура файлов
 ```
-src/
-├── main.ts              # Точка входа, регистрация ribbon/commands
-├── main-page/           # Dashboard, Kanban, Calendar, Notes views
-├── llm/                 # LLMService — API вызовы
-├── notes/               # TemplateManager — шаблоны заметок
-├── outlook/             # fetch_mail.py — Outlook интеграция
-├── settings/            # SettingsTab — UI настроек
-└── chat/                # ChatView — AI чат
+Plagin_omis/
+├── src/
+│   ├── main.ts                    # Точка входа, ribbon-кнопки, embedded UI
+│   ├── main-page/                 # Dashboard, Kanban, Calendar, Notes views
+│   │   ├── MainPageView.ts        # Главная панель (вкладки)
+│   │   ├── DashboardView.ts       # Дашборд с метриками
+│   │   ├── KanbanView.ts          # Канбан-доска (drag-and-drop)
+│   │   ├── CalendarView.ts        # Календарь на неделю
+│   │   ├── NotesView.ts           # Список заметок
+│   │   ├── DataService.ts         # Получение данных из хранилища
+│   │   ├── BaseView.ts            # Базовый класс для views
+│   │   └── types.ts               # TypeScript интерфейсы
+│   ├── llm/
+│   │   └── LLMService.ts          # Интеграция с корпоративной LLM
+│   ├── outlook/
+│   │   ├── OutlookService.ts      # TypeScript-обёртка для Python
+│   │   └── fetch_mail.py          # Python-скрипт (win32com) для Outlook
+│   ├── notes/
+│   │   └── TemplateManager.ts     # Шаблоны заметок, создание файлов
+│   ├── settings/
+│   │   └── SettingsTab.ts         # UI настроек плагина
+│   └── chat/
+│       └── ChatView.ts            # AI чат
+├── manifest.json                   # Метаданные плагина
+├── package.json                   # Зависимости и скрипты
+├── esbuild.config.mjs            # Сборка (авто-копирует в vault)
+├── styles.css                     # CSS стили (cyber-glass дизайн)
+└── tsconfig.json                 # Настройки TypeScript
 ```
 
 ---
 
-## Ключевые файлы для изучения
+## 🧭 Когда и куда смотреть?
 
-| Файл | Назначение | Когда смотреть |
-|------|------------|----------------|
-| `src/main.ts` | Инициализация, ribbon-кнопки, команды | Всегда первым |
-| `src/main-page/MainPageView.ts` | UI дашборда, канбан, календарь | UI/UX задачи |
-| `src/llm/LLMService.ts` | LLM API | Интеграция с ИИ |
-| `src/notes/TemplateManager.ts` | Шаблоны заметок | Работа с заметками |
-| `src/outlook/fetch_mail.py` | Python Outlook | Почтовый импорт |
-| `src/settings/SettingsTab.ts` | Настройки | Конфигурация |
-| `manifest.json` | Метаданные плагина | Версии, зависимости |
-| `esbuild.config.mjs` | Сборка | Изменения в сборке |
+### 1. Архитектурная логика (Ядро)
+**Файлы:** `src/main.ts`, `manifest.json`
+
+Добавить новую команду/ribbon-кнопку → `src/main.ts`
+
+### 2. UI панели (Dashboard, Kanban, Calendar, Notes)
+**Файл:** `src/main-page/MainPageView.ts` + отдельные view файлы
+
+Изменить UI дашборда, канбана, календаря → смотри соответствующий файл в `main-page/`
+
+### 3. Бизнес-логика: Шаблоны заметок
+**Файл:** `src/notes/TemplateManager.ts`
+
+- Изменить структуру создаваемых Markdown-заметок
+- Изменить алгоритм именования файлов
+- Изменить папки сохранения
+
+### 4. Бизнес-логика: Почта (Outlook)
+**Файлы:** `src/outlook/fetch_mail.py`, `src/outlook/OutlookService.ts`
+
+- Изменить правила извлечения почты
+- Изменить фильтры писем
+- Изменить структуру JSON ответа
+
+### 5. Бизнес-логика: AI и LLM
+**Файл:** `src/llm/LLMService.ts`
+
+- Изменить system prompt
+- Добавить новые фичи ИИ
+- Изменить параметры API (temperature, max_tokens)
+
+### 6. Пользовательский интерфейс: Настройки
+**Файл:** `src/settings/SettingsTab.ts`
+
+- Добавить новое поле настроек
+- Изменить подсказки или тексты
 
 ---
 
-## Рабочий процесс
+## 🛠 Паттерн взаимодействия слоев (Data Flow)
 
-### 1. Сборка и тестирование
+```
+1. Событие (клик по кнопке в main.ts)
+        ↓
+2. OutlookService → fetch_mail.py → JSON с письмами
+        ↓
+3. LLMService → суммаризация текста
+        ↓
+4. TemplateManager → создание/обновление Markdown файла
+```
+
+---
+
+## ⚙️ Рабочий процесс
+
+### Сборка и тестирование
 ```bash
 npm install          # Установка зависимостей (однократно)
-npm run dev          # Watch mode — авто-пересборка
+npm run dev          # Watch mode — авто-пересборка + копирование в vault
 npm run build        # Разовая сборка
 ```
 
@@ -57,57 +110,34 @@ npm run build        # Разовая сборка
 C:\Users\talyu\Desktop\Obsidian_OMIS\.obsidian\plugins\monitoring-plugin
 ```
 
-### 2. Тестирование изменений
-1. Запустить `npm run dev`
+### Тестирование изменений
+1. `npm run dev` — запустить watch mode
 2. Изменить код в `src/`
-3. Файлы авто-обновятся в vault
-4. В Obsidian: Settings → Community Plugins → выключить/включить плагин
+3. Файлы авто-обновятся в хранилище
+4. Obsidian: Settings → Community Plugins → выключить/включить плагин
 
-### 3. Пуш на GitHub
+### Пуш на GitHub
 ```bash
 git add . && git commit -m "описание" && git push
 ```
 
 ---
 
-## Типовые задачи и куда смотреть
-
-### Добавить новую команду в ribbon
-→ `src/main.ts` — функция `addRibbonIcons()`
-
-### Изменить UI дашборда
-→ `src/main-page/MainPageView.ts` — методы `renderDashboard()`, `renderKanban()` и т.д.
-
-### Добавить новый тип заметки
-→ `src/notes/TemplateManager.ts` — массив `templates`
-
-### Интеграция с новым API
-→ `src/llm/LLMService.ts` — методы `call()`, `summarize()`
-
-### Изменить стили
-→ `styles.css` — CSS переменные в `:root`
-
-### Добавить настройку
-→ `src/settings/SettingsTab.ts` + обновить типы в `main.ts`
-
----
-
-## Важные особенности кода
-
-### Settings хранение
-```typescript
-// Сохранение
-this.saveData(data);
-
-// Загрузка
-this.loadData();
-```
+## 📋 Код-примеры
 
 ### Ribbon-кнопки (main.ts)
 ```typescript
 this.addRibbonIcon('mail', 'Импорт почты', () => this.importMail());
 this.addRibbonIcon('brain', 'Главная панель', () => this.openMainPage());
 this.addRibbonIcon('message-circle', 'AI Чат', () => this.openChat());
+```
+
+### Settings хранение
+```typescript
+// Сохранение
+this.saveData(data);
+// Загрузка
+this.loadData();
 ```
 
 ### LLM API вызов
@@ -125,7 +155,20 @@ POST {baseUrl}/v1/chat/completions
 
 ---
 
-## Версионирование
+## 📁 Типовые задачи
+
+| Задача | Файл |
+|--------|------|
+| Новая ribbon-кнопка | `src/main.ts` |
+| Изменить UI дашборда | `src/main-page/DashboardView.ts` |
+| Изменить канбан | `src/main-page/KanbanView.ts` |
+| Изменить шаблон заметки | `src/notes/TemplateManager.ts` |
+| Изменить стили | `styles.css` |
+| Добавить настройку | `src/settings/SettingsTab.ts` |
+
+---
+
+## 🔢 Версионирование
 
 | Файл | Менять при версии |
 |------|------------------|
@@ -136,6 +179,14 @@ POST {baseUrl}/v1/chat/completions
 
 ---
 
-## Полезные ссылки
+## 🐛 Известные баги
+
+### Иконки статуса подзадач не обновляются через время после создания
+**Статус:** Средний приоритет
+**Файлы:** `src/notes/TemplateManager.ts`, `src/main.ts`
+
+---
+
+## 🔗 Полезные ссылки
 - [Obsidian API Docs](https://docs.obsidian.md/Plugins/API)
-- [BRAT Plugin](https://obsidian.md/plugins?id=obsidian42-brat) — для обновлений
+- [BRAT Plugin](https://obsidian.md/plugins?id=obsidian42-brat) — для обновлений через GitHub
