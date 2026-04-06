@@ -39,8 +39,14 @@ Plagin_omis/
 │   │   └── ChatView.ts            # AI чат
 │   ├── team/
 │   │   └── TeamService.ts         # Сервис для работы с командой
-│   └── daily/
-│       └── DailyService.ts        # Сервис для Daily Notes
+│   ├── daily/
+│   │   └── DailyService.ts        # Сервис для Daily Notes
+│   ├── modals/                    # Модальные окна
+│   │   ├── TagModal.ts
+│   │   ├── ResourceModal.ts
+│   │   ├── NewTaskModal.ts
+│   │   └── ResponsibleButtonModal.ts
+│   └── MonitoringDurationChild.ts # Embedded UI в заметках
 ├── manifest.json                   # Метаданные плагина
 ├── package.json                   # Зависимости и скрипты
 ├── esbuild.config.mjs            # Сборка (авто-копирует в vault)

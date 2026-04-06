@@ -1499,6 +1499,45 @@ var TeamService = class {
       return [];
     }
   }
+  getCurrentUser() {
+    const settings = this.getSettings();
+    return (settings == null ? void 0 : settings.currentUser) || "";
+  }
+  async addTeamMember(name) {
+    const routinesFile = this.app.vault.getAbstractFileByPath("routines.md");
+    if (!routinesFile || !(routinesFile instanceof import_obsidian8.TFile)) {
+      const content2 = `# \u041A\u043E\u043C\u0430\u043D\u0434\u0430
+- ${name}
+`;
+      await this.app.vault.create("routines.md", content2);
+      return;
+    }
+    const content = await this.app.vault.read(routinesFile);
+    if (!content.includes("# \u041A\u043E\u043C\u0430\u043D\u0434\u0430") && !content.includes("# \u043A\u043E\u043C\u0430\u043D\u0434\u0430")) {
+      const newContent = content + "\n# \u041A\u043E\u043C\u0430\u043D\u0434\u0430\n- " + name + "\n";
+      await this.app.vault.modify(routinesFile, newContent);
+    } else if (!content.includes("- " + name)) {
+      const lines = content.split("\n");
+      let inTeamSection = false;
+      const newLines = [];
+      for (const line of lines) {
+        if (line.trim().toLowerCase() === "# \u043A\u043E\u043C\u0430\u043D\u0434\u0430") {
+          inTeamSection = true;
+        }
+        if (inTeamSection && (line.startsWith("# ") || line.startsWith("## "))) {
+          newLines.push(line);
+          newLines.push("- " + name);
+          inTeamSection = false;
+          continue;
+        }
+        newLines.push(line);
+      }
+      if (inTeamSection) {
+        newLines.push("- " + name);
+      }
+      await this.app.vault.modify(routinesFile, newLines.join("\n"));
+    }
+  }
   parseTeamFromContent(content) {
     const members = [];
     let inTeamSection = false;
@@ -1521,6 +1560,10 @@ var TeamService = class {
       }
     }
     return members;
+  }
+  getSettings() {
+    var _a;
+    return ((_a = this.app.plugins.plugins["monitoring-plugin"]) == null ? void 0 : _a.settings) || null;
   }
 };
 
