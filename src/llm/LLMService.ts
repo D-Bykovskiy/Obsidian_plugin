@@ -229,4 +229,112 @@ export class LLMService {
             throw new Error(`Ошибка при генерации отчета: ${error.message}`);
         }
     }
+
+    async checkSpelling(text: string): Promise<string> {
+        if (this.settings.useMockLLM) {
+            return `[MOCK] Исправленная орфография:\n${text}`;
+        }
+
+        if (!this.settings.llmApiKey || !this.settings.llmBaseUrl) {
+            throw new Error('LLM API Not Configured in Settings!');
+        }
+
+        let baseUrl = this.settings.llmBaseUrl.replace(/\/$/, '');
+        let endpoint = baseUrl;
+        if (!baseUrl.endsWith('/chat/completions')) {
+            if (baseUrl.match(/\/(v\d+|api\/v\d+)$/)) {
+                endpoint = `${baseUrl}/chat/completions`;
+            } else {
+                endpoint = `${baseUrl}/v1/chat/completions`;
+            }
+        }
+
+        const requestData = {
+            model: this.settings.llmModel || 'llm-medium-moe-instruct',
+            messages: [
+                { role: 'system', content: 'Ты опытный редактор. Исправляй орфографические и грамматические ошибки в тексте. Возвращай только исправленный текст без комментариев.' },
+                { role: 'user', content: `Исправь орфографию:\n${text}` }
+            ],
+            stream: false,
+            temperature: 0.3,
+            max_tokens: 2000
+        };
+
+        const requestParams: RequestUrlParam = {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.settings.llmApiKey}`
+            },
+            body: JSON.stringify(requestData)
+        };
+
+        try {
+            const response = await requestUrl(requestParams);
+            if (response.status >= 200 && response.status < 300) {
+                const json = response.json;
+                return json.choices?.[0]?.message?.content || text;
+            } else {
+                throw new Error(`LLM Error ${response.status}: ${response.text}`);
+            }
+        } catch (error) {
+            console.error('LLM API Error:', error);
+            throw error;
+        }
+    }
+
+    async rephrase(text: string): Promise<string> {
+        if (this.settings.useMockLLM) {
+            return `[MOCK] Переформулированный текст:\n${text}`;
+        }
+
+        if (!this.settings.llmApiKey || !this.settings.llmBaseUrl) {
+            throw new Error('LLM API Not Configured in Settings!');
+        }
+
+        let baseUrl = this.settings.llmBaseUrl.replace(/\/$/, '');
+        let endpoint = baseUrl;
+        if (!baseUrl.endsWith('/chat/completions')) {
+            if (baseUrl.match(/\/(v\d+|api\/v\d+)$/)) {
+                endpoint = `${baseUrl}/chat/completions`;
+            } else {
+                endpoint = `${baseUrl}/v1/chat/completions`;
+            }
+        }
+
+        const requestData = {
+            model: this.settings.llmModel || 'llm-medium-moe-instruct',
+            messages: [
+                { role: 'system', content: 'Ты опытный редактор. Переформулируй текст более грамотно, четко и профессионально. Сохрани смысл. Возвращай только переформулированный текст без комментариев.' },
+                { role: 'user', content: `Переформулируй:\n${text}` }
+            ],
+            stream: false,
+            temperature: 0.5,
+            max_tokens: 2000
+        };
+
+        const requestParams: RequestUrlParam = {
+            url: endpoint,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.settings.llmApiKey}`
+            },
+            body: JSON.stringify(requestData)
+        };
+
+        try {
+            const response = await requestUrl(requestParams);
+            if (response.status >= 200 && response.status < 300) {
+                const json = response.json;
+                return json.choices?.[0]?.message?.content || text;
+            } else {
+                throw new Error(`LLM Error ${response.status}: ${response.text}`);
+            }
+        } catch (error) {
+            console.error('LLM API Error:', error);
+            throw error;
+        }
+    }
 }

@@ -1,4 +1,4 @@
-import { Plugin, Notice, TFile, MarkdownRenderChild, WorkspaceLeaf } from 'obsidian';
+import { Plugin, Notice, TFile, MarkdownRenderChild, WorkspaceLeaf, Editor, Menu, MarkdownView, MarkdownFileInfo } from 'obsidian';
 import { LLMService } from './llm/LLMService';
 import { OutlookService } from './outlook/OutlookService';
 import { TemplateManager } from './notes/TemplateManager';
@@ -111,6 +111,41 @@ export default class MonitoringPlugin extends Plugin {
         });
 
         this.addSettingTab(new MonitoringSettingTab(this.app, this));
+
+        this.app.workspace.on('editor-menu', (menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo) => {
+            const selection = editor.getSelection();
+            if (!selection) return;
+
+            menu.addItem((item) => {
+                item.setTitle('ИИ: Орфография')
+                    .setIcon('check')
+                    .onClick(async () => {
+                        new Notice('Проверка орфографии...');
+                        try {
+                            const fixed = await this.llmService.checkSpelling(selection);
+                            editor.replaceSelection(fixed);
+                            new Notice('Орфография исправлена');
+                        } catch (e) {
+                            new Notice('Ошибка: ' + e.message);
+                        }
+                    });
+            });
+
+            menu.addItem((item) => {
+                item.setTitle('ИИ: Переформулировать')
+                    .setIcon('refresh-cw')
+                    .onClick(async () => {
+                        new Notice('Переформулирование...');
+                        try {
+                            const rephrased = await this.llmService.rephrase(selection);
+                            editor.replaceSelection(rephrased);
+                            new Notice('Текст переформулирован');
+                        } catch (e) {
+                            new Notice('Ошибка: ' + e.message);
+                        }
+                    });
+            });
+        });
     }
 
     async activateChatView() {

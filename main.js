@@ -271,6 +271,108 @@ ${incidentsSummary}` }
       throw new Error(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: ${error.message}`);
     }
   }
+  async checkSpelling(text) {
+    var _a, _b, _c;
+    if (this.settings.useMockLLM) {
+      return `[MOCK] \u0418\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043D\u0430\u044F \u043E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044F:
+${text}`;
+    }
+    if (!this.settings.llmApiKey || !this.settings.llmBaseUrl) {
+      throw new Error("LLM API Not Configured in Settings!");
+    }
+    let baseUrl = this.settings.llmBaseUrl.replace(/\/$/, "");
+    let endpoint = baseUrl;
+    if (!baseUrl.endsWith("/chat/completions")) {
+      if (baseUrl.match(/\/(v\d+|api\/v\d+)$/)) {
+        endpoint = `${baseUrl}/chat/completions`;
+      } else {
+        endpoint = `${baseUrl}/v1/chat/completions`;
+      }
+    }
+    const requestData = {
+      model: this.settings.llmModel || "llm-medium-moe-instruct",
+      messages: [
+        { role: "system", content: "\u0422\u044B \u043E\u043F\u044B\u0442\u043D\u044B\u0439 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440. \u0418\u0441\u043F\u0440\u0430\u0432\u043B\u044F\u0439 \u043E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0438 \u0433\u0440\u0430\u043C\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u043E\u0448\u0438\u0431\u043A\u0438 \u0432 \u0442\u0435\u043A\u0441\u0442\u0435. \u0412\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0439 \u0442\u043E\u043B\u044C\u043A\u043E \u0438\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442 \u0431\u0435\u0437 \u043A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0435\u0432." },
+        { role: "user", content: `\u0418\u0441\u043F\u0440\u0430\u0432\u044C \u043E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044E:
+${text}` }
+      ],
+      stream: false,
+      temperature: 0.3,
+      max_tokens: 2e3
+    };
+    const requestParams = {
+      url: endpoint,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.settings.llmApiKey}`
+      },
+      body: JSON.stringify(requestData)
+    };
+    try {
+      const response = await (0, import_obsidian.requestUrl)(requestParams);
+      if (response.status >= 200 && response.status < 300) {
+        const json = response.json;
+        return ((_c = (_b = (_a = json.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) || text;
+      } else {
+        throw new Error(`LLM Error ${response.status}: ${response.text}`);
+      }
+    } catch (error) {
+      console.error("LLM API Error:", error);
+      throw error;
+    }
+  }
+  async rephrase(text) {
+    var _a, _b, _c;
+    if (this.settings.useMockLLM) {
+      return `[MOCK] \u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442:
+${text}`;
+    }
+    if (!this.settings.llmApiKey || !this.settings.llmBaseUrl) {
+      throw new Error("LLM API Not Configured in Settings!");
+    }
+    let baseUrl = this.settings.llmBaseUrl.replace(/\/$/, "");
+    let endpoint = baseUrl;
+    if (!baseUrl.endsWith("/chat/completions")) {
+      if (baseUrl.match(/\/(v\d+|api\/v\d+)$/)) {
+        endpoint = `${baseUrl}/chat/completions`;
+      } else {
+        endpoint = `${baseUrl}/v1/chat/completions`;
+      }
+    }
+    const requestData = {
+      model: this.settings.llmModel || "llm-medium-moe-instruct",
+      messages: [
+        { role: "system", content: "\u0422\u044B \u043E\u043F\u044B\u0442\u043D\u044B\u0439 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440. \u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u0443\u0439 \u0442\u0435\u043A\u0441\u0442 \u0431\u043E\u043B\u0435\u0435 \u0433\u0440\u0430\u043C\u043E\u0442\u043D\u043E, \u0447\u0435\u0442\u043A\u043E \u0438 \u043F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u043E. \u0421\u043E\u0445\u0440\u0430\u043D\u0438 \u0441\u043C\u044B\u0441\u043B. \u0412\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0439 \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442 \u0431\u0435\u0437 \u043A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0435\u0432." },
+        { role: "user", content: `\u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u0443\u0439:
+${text}` }
+      ],
+      stream: false,
+      temperature: 0.5,
+      max_tokens: 2e3
+    };
+    const requestParams = {
+      url: endpoint,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.settings.llmApiKey}`
+      },
+      body: JSON.stringify(requestData)
+    };
+    try {
+      const response = await (0, import_obsidian.requestUrl)(requestParams);
+      if (response.status >= 200 && response.status < 300) {
+        const json = response.json;
+        return ((_c = (_b = (_a = json.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) || text;
+      } else {
+        throw new Error(`LLM Error ${response.status}: ${response.text}`);
+      }
+    } catch (error) {
+      console.error("LLM API Error:", error);
+      throw error;
+    }
+  }
 };
 
 // src/outlook/OutlookService.ts
@@ -3272,6 +3374,35 @@ var MonitoringPlugin = class extends import_obsidian17.Plugin {
       ctx.addChild(child);
     });
     this.addSettingTab(new MonitoringSettingTab(this.app, this));
+    this.app.workspace.on("editor-menu", (menu, editor, info) => {
+      const selection = editor.getSelection();
+      if (!selection)
+        return;
+      menu.addItem((item) => {
+        item.setTitle("\u0418\u0418: \u041E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044F").setIcon("check").onClick(async () => {
+          new import_obsidian17.Notice("\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u0438...");
+          try {
+            const fixed = await this.llmService.checkSpelling(selection);
+            editor.replaceSelection(fixed);
+            new import_obsidian17.Notice("\u041E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044F \u0438\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430");
+          } catch (e) {
+            new import_obsidian17.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
+          }
+        });
+      });
+      menu.addItem((item) => {
+        item.setTitle("\u0418\u0418: \u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u0442\u044C").setIcon("refresh-cw").onClick(async () => {
+          new import_obsidian17.Notice("\u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435...");
+          try {
+            const rephrased = await this.llmService.rephrase(selection);
+            editor.replaceSelection(rephrased);
+            new import_obsidian17.Notice("\u0422\u0435\u043A\u0441\u0442 \u043F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D");
+          } catch (e) {
+            new import_obsidian17.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
+          }
+        });
+      });
+    });
   }
   async activateChatView() {
     const { workspace } = this.app;
