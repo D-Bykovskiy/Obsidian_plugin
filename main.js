@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => MonitoringPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 
 // src/llm/LLMService.ts
 var import_obsidian = require("obsidian");
@@ -589,6 +589,7 @@ cssclasses: [hide-properties]
     await this.ensureFolder(folder);
     const dateStr = new Date().toISOString().split("T")[0];
     const fileName = `${folder}/Project-${name.replace(/[\\/:"*?<>|]/g, "_")}.md`;
+    const codeBlock = "```monitoring-duration\n```";
     const content = `---
 type: project
 status: Active
@@ -598,13 +599,13 @@ owner: "${this.app.vault.getName()}"
 goal: ""
 tags: [project]
 responsible: "${this.settings.currentUser}"
+tracked_emails: []
 cssclasses: [hide-properties]
 ---
 
 # ${name}
 
-\`\`\`monitoring-duration
-\`\`\`
+${codeBlock}
 
 ## \u{1F3AF} \u0426\u0435\u043B\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430
 1. 
@@ -614,6 +615,8 @@ cssclasses: [hide-properties]
 - [ ] \u0420\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430
 - [ ] \u0422\u0435\u0441\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435
 - [ ] \u0417\u0430\u043F\u0443\u0441\u043A
+
+## \u{1F4EC} \u041F\u0438\u0441\u044C\u043C\u0430
 
 `;
     return vault.create(fileName, content);
@@ -1231,7 +1234,7 @@ var DataService = class {
     };
   }
   parseProject(file, cache, basename) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     return {
       id: basename,
       name: basename.replace(/^Project-/, ""),
@@ -1240,7 +1243,8 @@ var DataService = class {
       goal: ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["goal"]) || "",
       priority: (_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["priority"],
       target_date: (_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["target_date"],
-      responsible: ((_e = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _e["responsible"]) || void 0
+      responsible: ((_e = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _e["responsible"]) || void 0,
+      tracked_emails: ((_f = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _f["tracked_emails"]) || []
     };
   }
   parseNote(file, cache, basename, tags) {
@@ -1381,12 +1385,19 @@ var DashboardView = class extends BaseView {
       this.createEmptyState(container, "\u041F\u0440\u043E\u0435\u043A\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442.");
       return;
     }
-    const { tbody } = this.createTable(container, ["\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435", "\u0426\u0435\u043B\u044C", "\u0421\u0442\u0430\u0442\u0443\u0441"]);
+    const { tbody } = this.createTable(container, ["\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435", "\u0426\u0435\u043B\u044C", "\u041F\u043E\u0447\u0442\u0430", "\u0421\u0442\u0430\u0442\u0443\u0441"]);
     this.projects.forEach((p) => {
       const row = tbody.createEl("tr");
       const nameCell = row.createEl("td");
       this.createLinkCell(nameCell, p.name, p.path);
       row.createEl("td", { text: p.goal || "---" });
+      const emailCell = row.createEl("td");
+      const emails = p.tracked_emails || [];
+      if (emails.length > 0) {
+        emailCell.createSpan({ text: `\u{1F4E7} ${emails.length}`, cls: "email-count-badge" });
+      } else {
+        emailCell.createSpan({ text: "---", cls: "empty-text" });
+      }
       this.createStatusBadge(row.createEl("td"), p.status);
     });
   }
@@ -2817,7 +2828,7 @@ var NamingModal = class extends import_obsidian11.Modal {
 };
 
 // src/MonitoringDurationChild.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/modals/TagModal.ts
 var import_obsidian12 = require("obsidian");
@@ -3043,8 +3054,78 @@ var ResponsibleButtonModal = class extends import_obsidian15.Modal {
   }
 };
 
+// src/modals/EmailTopicModal.ts
+var import_obsidian16 = require("obsidian");
+var EmailTopicModal = class extends import_obsidian16.Modal {
+  constructor(app, file, onSave) {
+    super(app);
+    this.topics = [];
+    this.newTopic = "";
+    this.file = file;
+    this.onSave = onSave;
+  }
+  async onOpen() {
+    var _a;
+    const { contentEl } = this;
+    const cache = this.app.metadataCache.getFileCache(this.file);
+    this.topics = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["tracked_emails"]) || [];
+    this.render(contentEl);
+  }
+  render(contentEl) {
+    contentEl.empty();
+    contentEl.createEl("h3", { text: "\u041E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u0435 \u043F\u0438\u0441\u0435\u043C" });
+    const desc = contentEl.createEl("p");
+    desc.textContent = "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0442\u0435\u043C\u044B \u043F\u0438\u0441\u0435\u043C \u0434\u043B\u044F \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u044F. \u0412\u0441\u0435 \u043F\u0438\u0441\u044C\u043C\u0430 \u0441 \u044D\u0442\u0438\u043C\u0438 \u0442\u0435\u043C\u0430\u043C\u0438 \u0431\u0443\u0434\u0443\u0442 \u0434\u043E\u0431\u0430\u0432\u043B\u044F\u0442\u044C\u0441\u044F \u0432 \u043F\u0440\u043E\u0435\u043A\u0442.";
+    const listContainer = contentEl.createDiv({ cls: "email-topics-list" });
+    this.renderTopicsList(listContainer);
+    const addSection = contentEl.createDiv({ cls: "email-topics-add" });
+    addSection.style.marginTop = "16px";
+    const input = new import_obsidian16.TextComponent(addSection);
+    input.setPlaceholder("\u041D\u043E\u0432\u0430\u044F \u0442\u0435\u043C\u0430 \u043F\u0438\u0441\u044C\u043C\u0430");
+    input.inputEl.style.width = "70%";
+    input.onChange((v) => this.newTopic = v);
+    new import_obsidian16.ButtonComponent(addSection).setButtonText("+").onClick(() => {
+      if (this.newTopic.trim() && !this.topics.includes(this.newTopic.trim())) {
+        this.topics.push(this.newTopic.trim());
+        this.newTopic = "";
+        input.setValue("");
+        this.renderTopicsList(contentEl.querySelector(".email-topics-list"));
+      }
+    });
+    const btnContainer = contentEl.createDiv();
+    btnContainer.style.display = "flex";
+    btnContainer.style.gap = "10px";
+    btnContainer.style.marginTop = "20px";
+    new import_obsidian16.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C").setCta().onClick(() => {
+      this.onSave(this.topics);
+      this.close();
+    });
+    new import_obsidian16.ButtonComponent(btnContainer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
+  }
+  renderTopicsList(container) {
+    container.empty();
+    if (this.topics.length === 0) {
+      container.createEl("p", { text: "\u0422\u0435\u043C\u044B \u043F\u043E\u043A\u0430 \u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u044B", cls: "empty-text" });
+      return;
+    }
+    this.topics.forEach((topic, idx) => {
+      const item = container.createDiv({ cls: "email-topic-item" });
+      item.createSpan({ text: topic, cls: "email-topic-text" });
+      const deleteBtn = item.createEl("button", {
+        text: "\xD7",
+        cls: "email-topic-delete",
+        attr: { title: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C" }
+      });
+      deleteBtn.onclick = () => {
+        this.topics.splice(idx, 1);
+        this.renderTopicsList(container);
+      };
+    });
+  }
+};
+
 // src/MonitoringDurationChild.ts
-var MonitoringDurationChild = class extends import_obsidian16.MarkdownRenderChild {
+var MonitoringDurationChild = class extends import_obsidian17.MarkdownRenderChild {
   constructor(containerEl, plugin, file) {
     super(containerEl);
     this.plugin = plugin;
@@ -3066,7 +3147,7 @@ var MonitoringDurationChild = class extends import_obsidian16.MarkdownRenderChil
     let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
     const isSimpleNote = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["type"]) === "note";
     const renderCollapsed = () => {
-      var _a2, _b2, _c, _d;
+      var _a2, _b2, _c, _d, _e;
       rootContainer.empty();
       const panelContainer = rootContainer.createDiv({ cls: "monitoring-controls-panel" });
       if (!isSimpleNote) {
@@ -3086,6 +3167,20 @@ var MonitoringDurationChild = class extends import_obsidian16.MarkdownRenderChil
           await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
             fm["responsible"] = name;
           });
+        }).open();
+        const emailContainer = row1.createDiv({ cls: "monitoring-third-row" });
+        const trackedEmails = ((_b2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b2["tracked_emails"]) || [];
+        const emailCount = Array.isArray(trackedEmails) ? trackedEmails.length : 0;
+        const emailBtn = emailContainer.createEl("button", {
+          cls: "monitoring-glass-btn monitoring-btn-full",
+          text: emailCount > 0 ? `\u{1F4E7} ${emailCount} \u0442\u0435\u043C` : "\u{1F4E7} \u041F\u043E\u0447\u0442\u0430"
+        });
+        emailBtn.onclick = () => new EmailTopicModal(this.plugin.app, this.file, async (topics) => {
+          await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+            fm["tracked_emails"] = topics;
+          });
+          this.rootContainer.empty();
+          await this.renderUI();
         }).open();
         const pContainer = row1.createDiv({ cls: "monitoring-third-row" });
         let isPExp = false;
@@ -3136,14 +3231,14 @@ var MonitoringDurationChild = class extends import_obsidian16.MarkdownRenderChil
       } else {
         const row1 = panelContainer.createDiv({ cls: "monitoring-split-row" });
         const dateContainer = row1.createDiv({ cls: "monitoring-half-row" });
-        const createdDate = ((_b2 = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b2["created"]) || "";
+        const createdDate = ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["created"]) || "";
         dateContainer.createEl("button", {
           cls: "monitoring-glass-btn monitoring-btn-full",
           text: createdDate ? `\u{1F4C5} ${createdDate}` : "\u{1F4C5} \u0414\u0430\u0442\u0430"
         }).onclick = () => {
         };
         const authorContainer = row1.createDiv({ cls: "monitoring-half-row" });
-        const currentAuthor = ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c["author"]) || this.plugin.settings.currentUser || "";
+        const currentAuthor = ((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["author"]) || this.plugin.settings.currentUser || "";
         const authorBtn = authorContainer.createEl("button", {
           cls: "monitoring-glass-btn monitoring-btn-full",
           text: currentAuthor ? `\u270D\uFE0F ${currentAuthor}` : "\u270D\uFE0F \u0410\u0432\u0442\u043E\u0440"
@@ -3176,7 +3271,7 @@ var MonitoringDurationChild = class extends import_obsidian16.MarkdownRenderChil
           await this.plugin.app.vault.delete(this.file);
       };
       const tagList = rootContainer.createDiv({ cls: "monitoring-tag-list" });
-      const tags = ((_d = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _d["tags"]) || [];
+      const tags = ((_e = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _e["tags"]) || [];
       (Array.isArray(tags) ? tags : [tags]).forEach((tag) => {
         const pill = tagList.createSpan({ cls: "monitoring-tag-pill", text: `#${tag}` });
         pill.onclick = () => {
@@ -3297,7 +3392,7 @@ var MonitoringDurationChild = class extends import_obsidian16.MarkdownRenderChil
 };
 
 // src/main.ts
-var MonitoringPlugin = class extends import_obsidian17.Plugin {
+var MonitoringPlugin = class extends import_obsidian18.Plugin {
   async onload() {
     await this.loadSettings();
     this.llmService = new LLMService(this.settings);
@@ -3359,16 +3454,16 @@ var MonitoringPlugin = class extends import_obsidian17.Plugin {
             if (!fm["tracked_subjects"].includes(topic))
               fm["tracked_subjects"].push(topic);
           });
-          new import_obsidian17.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
+          new import_obsidian18.Notice(`\u0422\u0435\u043C\u0430 "${topic}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430!`);
           input.value = "";
         } else {
-          new import_obsidian17.Notice("\u0424\u0430\u0439\u043B \u0434\u0430\u0448\u0431\u043E\u0440\u0434\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D!");
+          new import_obsidian18.Notice("\u0424\u0430\u0439\u043B \u0434\u0430\u0448\u0431\u043E\u0440\u0434\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D!");
         }
       };
     });
     this.registerMarkdownCodeBlockProcessor("monitoring-duration", (source, el, ctx) => {
       const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-      if (!(file instanceof import_obsidian17.TFile))
+      if (!(file instanceof import_obsidian18.TFile))
         return;
       const child = new MonitoringDurationChild(el, this, file);
       ctx.addChild(child);
@@ -3380,25 +3475,25 @@ var MonitoringPlugin = class extends import_obsidian17.Plugin {
         return;
       menu.addItem((item) => {
         item.setTitle("\u0418\u0418: \u041E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044F").setIcon("check").onClick(async () => {
-          new import_obsidian17.Notice("\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u0438...");
+          new import_obsidian18.Notice("\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u0438...");
           try {
             const fixed = await this.llmService.checkSpelling(selection);
             editor.replaceSelection(fixed);
-            new import_obsidian17.Notice("\u041E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044F \u0438\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430");
+            new import_obsidian18.Notice("\u041E\u0440\u0444\u043E\u0433\u0440\u0430\u0444\u0438\u044F \u0438\u0441\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430");
           } catch (e) {
-            new import_obsidian17.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
+            new import_obsidian18.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
           }
         });
       });
       menu.addItem((item) => {
         item.setTitle("\u0418\u0418: \u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u0442\u044C").setIcon("refresh-cw").onClick(async () => {
-          new import_obsidian17.Notice("\u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435...");
+          new import_obsidian18.Notice("\u041F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435...");
           try {
             const rephrased = await this.llmService.rephrase(selection);
             editor.replaceSelection(rephrased);
-            new import_obsidian17.Notice("\u0422\u0435\u043A\u0441\u0442 \u043F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D");
+            new import_obsidian18.Notice("\u0422\u0435\u043A\u0441\u0442 \u043F\u0435\u0440\u0435\u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u0430\u043D");
           } catch (e) {
-            new import_obsidian17.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
+            new import_obsidian18.Notice("\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message);
           }
         });
       });
@@ -3426,8 +3521,8 @@ var MonitoringPlugin = class extends import_obsidian17.Plugin {
       workspace.revealLeaf(leaf);
   }
   async processEmails() {
-    var _a;
-    new import_obsidian17.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
+    var _a, _b;
+    new import_obsidian18.Notice("\u0417\u0430\u043F\u0443\u0441\u043A \u0441\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F \u043F\u043E\u0447\u0442\u044B...");
     try {
       const allEmails = await this.outlookService.fetchEmails();
       allEmails.reverse();
@@ -3435,45 +3530,72 @@ var MonitoringPlugin = class extends import_obsidian17.Plugin {
       if (newEmails.length === 0)
         newEmails = allEmails.slice(Math.max(allEmails.length - 10, 0));
       if (newEmails.length === 0) {
-        new import_obsidian17.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
+        new import_obsidian18.Notice("\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.");
         return;
       }
-      const dashboardFile = this.app.vault.getAbstractFileByPath(this.settings.dashboardNoteName);
-      let trackedSubjects = [];
-      if (dashboardFile) {
-        const cache = this.app.metadataCache.getFileCache(dashboardFile);
-        if ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["tracked_subjects"]) {
-          trackedSubjects = cache.frontmatter["tracked_subjects"].map((s) => s.toLowerCase());
+      const files = this.app.vault.getMarkdownFiles();
+      const projectFiles = [];
+      for (const file of files) {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const type = (_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["type"];
+        if (type === "project") {
+          const tracked = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["tracked_emails"]) || [];
+          if (tracked.length > 0) {
+            projectFiles.push({
+              file,
+              tracked_emails: tracked.map((t) => t.toLowerCase())
+            });
+          }
         }
       }
       let processedCount = 0;
       for (const email of newEmails) {
-        if (trackedSubjects.length > 0) {
-          const topicLower = email.conversationTopic.toLowerCase();
-          if (!trackedSubjects.some((ts) => topicLower.includes(ts)))
-            continue;
-        }
-        const existingNote = await this.templateManager.getIncidentNoteByTopic(email.conversationTopic);
-        if (existingNote) {
-          const content = await this.templateManager.readNoteContent(existingNote);
-          const match = content.match(/## Текущее саммари инцидента\n([\s\S]*?)\n---/m);
-          const oldSummary = match ? match[1].trim() : "\u041B\u043E\u0433\u043E\u0432 \u043D\u0435\u0442.";
-          const combinedSummary = await this.llmService.updateIncidentSummary(oldSummary, email.bodyPreview);
-          await this.templateManager.updateIncidentNote(existingNote, email, combinedSummary);
+        const topicLower = email.conversationTopic.toLowerCase();
+        const matchedProjects = projectFiles.filter(
+          (p) => p.tracked_emails.some((te) => topicLower.includes(te))
+        );
+        if (matchedProjects.length > 0) {
+          for (const project of matchedProjects) {
+            await this.addEmailToProject(project.file, email);
+          }
         } else {
-          const summary = await this.llmService.summarizeIncident(email.bodyPreview);
-          await this.templateManager.createIncidentNote(email, summary);
+          const existingNote = await this.templateManager.getIncidentNoteByTopic(email.conversationTopic);
+          if (existingNote) {
+            const content = await this.templateManager.readNoteContent(existingNote);
+            const match = content.match(/## Текущее саммари инцидента\n([\s\S]*?)\n---/m);
+            const oldSummary = match ? match[1].trim() : "\u041B\u043E\u0433\u043E\u0432 \u043D\u0435\u0442.";
+            const combinedSummary = await this.llmService.updateIncidentSummary(oldSummary, email.bodyPreview);
+            await this.templateManager.updateIncidentNote(existingNote, email, combinedSummary);
+          } else {
+            const summary = await this.llmService.summarizeIncident(email.bodyPreview);
+            await this.templateManager.createIncidentNote(email, summary);
+          }
         }
         processedCount++;
         if (!this.settings.scannedEmailIds.includes(email.entryId))
           this.settings.scannedEmailIds.push(email.entryId);
       }
       await this.saveSettings();
-      new import_obsidian17.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
+      new import_obsidian18.Notice(processedCount === 0 ? "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C." : `\u0413\u043E\u0442\u043E\u0432\u043E! \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043D\u043E \u043F\u0438\u0441\u0435\u043C: ${processedCount}`);
     } catch (error) {
       console.error(error);
-      new import_obsidian17.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
+      new import_obsidian18.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0438\u043C\u043F\u043E\u0440\u0442\u0435: " + error.message);
     }
+  }
+  async addEmailToProject(projectFile, email) {
+    const vault = this.app.vault;
+    const content = await vault.read(projectFile);
+    const emailEntry = `- [${email.conversationTopic}](${email.subject}) \u2014 ${email.sender} (${new Date(email.receivedDateTime).toLocaleDateString("ru-RU")})`;
+    let newContent = content;
+    if (content.includes("## \u{1F4EC} \u041F\u0438\u0441\u044C\u043C\u0430")) {
+      const emailSectionMatch = content.match(/(## 📬 Письма\n)([\s\S]*)/);
+      if (emailSectionMatch) {
+        newContent = emailSectionMatch[1] + emailEntry + "\n" + emailSectionMatch[2];
+      }
+    } else {
+      newContent = content + "\n## \u{1F4EC} \u041F\u0438\u0441\u044C\u043C\u0430\n" + emailEntry + "\n";
+    }
+    await vault.modify(projectFile, newContent);
   }
   onunload() {
   }
@@ -3532,14 +3654,14 @@ ${newRow}`;
         await this.app.vault.createFolder(folderName);
       const newPath = `${folderName}/${file.name}`;
       if (this.app.vault.getAbstractFileByPath(newPath)) {
-        new import_obsidian17.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
+        new import_obsidian18.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
         return;
       }
       await this.app.fileManager.renameFile(file, newPath);
-      new import_obsidian17.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
+      new import_obsidian18.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
     } catch (e) {
       console.error(e);
-      new import_obsidian17.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
+      new import_obsidian18.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);
     }
   }
 };

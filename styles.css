@@ -1675,3 +1675,11 @@
     background: rgba(var(--interactive-accent-rgb), 0.15);
     box-shadow: 0 0 8px rgba(var(--interactive-accent-rgb), 0.4);
 }
+
+.email-count-badge {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: var(--font-ui-smaller);
+}

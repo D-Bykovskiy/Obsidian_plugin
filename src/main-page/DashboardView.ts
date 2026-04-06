@@ -85,13 +85,22 @@ export class DashboardView extends BaseView {
             return;
         }
 
-        const { tbody } = this.createTable(container, ['Название', 'Цель', 'Статус']);
+        const { tbody } = this.createTable(container, ['Название', 'Цель', 'Почта', 'Статус']);
         
         this.projects.forEach(p => {
             const row = tbody.createEl('tr');
             const nameCell = row.createEl('td');
             this.createLinkCell(nameCell, p.name, p.path);
             row.createEl('td', { text: p.goal || '---' });
+            
+            const emailCell = row.createEl('td');
+            const emails = p.tracked_emails || [];
+            if (emails.length > 0) {
+                emailCell.createSpan({ text: `📧 ${emails.length}`, cls: 'email-count-badge' });
+            } else {
+                emailCell.createSpan({ text: '---', cls: 'empty-text' });
+            }
+            
             this.createStatusBadge(row.createEl('td'), p.status);
         });
     }

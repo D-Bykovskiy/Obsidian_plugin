@@ -6,6 +6,7 @@ import { TagModal } from './modals/TagModal';
 import { ResourceModal } from './modals/ResourceModal';
 import { NewTaskModal } from './modals/NewTaskModal';
 import { ResponsibleButtonModal } from './modals/ResponsibleButtonModal';
+import { EmailTopicModal } from './modals/EmailTopicModal';
 
 export class MonitoringDurationChild extends MarkdownRenderChild {
     plugin: MonitoringPlugin;
@@ -55,6 +56,21 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
                 });
                 respBtn.onclick = () => new ResponsibleButtonModal(this.plugin.app, this.file, async (name) => {
                     await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['responsible'] = name; });
+                }).open();
+
+                const emailContainer = row1.createDiv({ cls: 'monitoring-third-row' });
+                const trackedEmails = cache?.frontmatter?.['tracked_emails'] || [];
+                const emailCount = Array.isArray(trackedEmails) ? trackedEmails.length : 0;
+                const emailBtn = emailContainer.createEl('button', {
+                    cls: 'monitoring-glass-btn monitoring-btn-full',
+                    text: emailCount > 0 ? `📧 ${emailCount} тем` : '📧 Почта'
+                });
+                emailBtn.onclick = () => new EmailTopicModal(this.plugin.app, this.file, async (topics) => {
+                    await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => {
+                        fm['tracked_emails'] = topics;
+                    });
+                    this.rootContainer.empty();
+                    await this.renderUI();
                 }).open();
 
                 const pContainer = row1.createDiv({ cls: 'monitoring-third-row' });

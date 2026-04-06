@@ -115,7 +115,8 @@ export class DataService {
             goal: cache?.frontmatter?.['goal'] || '',
             priority: cache?.frontmatter?.['priority'],
             target_date: cache?.frontmatter?.['target_date'],
-            responsible: cache?.frontmatter?.['responsible'] || undefined
+            responsible: cache?.frontmatter?.['responsible'] || undefined,
+            tracked_emails: cache?.frontmatter?.['tracked_emails'] || []
         };
     }
 

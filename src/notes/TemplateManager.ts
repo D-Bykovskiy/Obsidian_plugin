@@ -169,6 +169,7 @@ cssclasses: [hide-properties]
         const dateStr = new Date().toISOString().split('T')[0];
         const fileName = `${folder}/Project-${name.replace(/[\\/:"*?<>|]/g, '_')}.md`;
         
+        const codeBlock = '```monitoring-duration\n```';
         const content = `---
 type: project
 status: Active
@@ -178,13 +179,13 @@ owner: "${this.app.vault.getName()}"
 goal: ""
 tags: [project]
 responsible: "${this.settings.currentUser}"
+tracked_emails: []
 cssclasses: [hide-properties]
 ---
 
 # ${name}
 
-\`\`\`monitoring-duration
-\`\`\`
+${codeBlock}
 
 ## 🎯 Цели проекта
 1. 
@@ -194,6 +195,8 @@ cssclasses: [hide-properties]
 - [ ] Разработка
 - [ ] Тестирование
 - [ ] Запуск
+
+## 📬 Письма
 
 `;
 

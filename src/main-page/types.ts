@@ -22,6 +22,7 @@ export interface ProjectData {
     started?: string;
     target_date?: string;
     responsible?: string;
+    tracked_emails?: string[];
 }
 
 export interface IncidentData {
