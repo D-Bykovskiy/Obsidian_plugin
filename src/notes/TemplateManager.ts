@@ -77,8 +77,6 @@ cssclasses: [hide-properties]
 ${summary}
 
 ---
-## 📋 Список подзадач
-⬜ [[Шаблон]] | Статус | Срок
 
 ## Лог сообщений
 
@@ -197,11 +195,8 @@ cssclasses: [hide-properties]
 - [ ] Тестирование
 - [ ] Запуск
 
-## 📋 Список подзадач
-| Задача | Описание | Статус | Срок |
-| --- | --- | --- | --- |
-
 `;
+
         return vault.create(fileName, content);
     }
 
@@ -228,9 +223,6 @@ cssclasses: [hide-properties]
 
 ## 📝 Текст заметки
 Начните писать здесь...
-
-## 📋 Список подзадач
-⬜ [[Шаблон]] | Статус | Срок
 
 `;
         return vault.create(fileName, content);
