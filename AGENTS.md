@@ -15,7 +15,8 @@
 ```
 Plagin_omis/
 ├── src/
-│   ├── main.ts                    # Точка входа, ribbon-кнопки, embedded UI
+│   ├── main.ts                    # Точка входа, ribbon-кнопки
+│   ├── MonitoringDurationChild.ts # Embedded UI в заметках
 │   ├── main-page/                 # Dashboard, Kanban, Calendar, Notes, Resources views
 │   │   ├── MainPageView.ts        # Главная панель (вкладки)
 │   │   ├── DashboardView.ts       # Дашборд с метриками
@@ -46,7 +47,9 @@ Plagin_omis/
 │   │   ├── ResourceModal.ts
 │   │   ├── NewTaskModal.ts
 │   │   └── ResponsibleButtonModal.ts
-│   └── MonitoringDurationChild.ts # Embedded UI в заметках
+│   └── utils/                      # Утилиты
+│       ├── FrontMatterService.ts  # Работа с frontmatter
+│       └── FileService.ts        # Работа с файлами
 ├── manifest.json                   # Метаданные плагина
 ├── package.json                   # Зависимости и скрипты
 ├── esbuild.config.mjs            # Сборка (авто-копирует в vault)
@@ -266,6 +269,27 @@ tue:
 ### Поля:
 - `responsible` — ответственный в задачах и проектах
 - `author` — автор заметок
+
+---
+
+## 🛠 Утилиты
+
+### Файлы:
+- `src/utils/FrontMatterService.ts` — работа с frontmatter
+- `src/utils/FileService.ts` — работа с файлами
+
+### Использование:
+```typescript
+// FrontMatterService
+const fmService = new FrontMatterService(app);
+await fmService.update(file, { status: 'Done', priority: 1 });
+const status = await fmService.get(file, 'status', 'To Do');
+
+// FileService
+const fileService = new FileService(app);
+await fileService.ensureFolder('tasks');
+await fileService.modify(file, 'new content');
+```
 
 ---
 
