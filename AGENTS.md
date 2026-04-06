@@ -141,6 +141,29 @@ git add . && git commit -m "описание" && git push
 
 ---
 
+## 🚀 Установка без GitHub
+
+### Способ 1: Ручное копирование
+1. Скачать ZIP архив `monitoring-plugin-v1.4.0.zip` (доступен в репозитории)
+2. Распаковать в папку плагина:
+   ```
+   <vault>/.obsidian/plugins/Plagin-omis/
+   ```
+3. Перезагрузить Obsidian
+4. Settings → Community Plugins → включить плагин
+
+### Способ 2: Для разработки
+```bash
+npm run dev   # Автоматически копирует в vault
+```
+
+### Способ 3: BRAT Plugin (альтернатива)
+1. Установить BRAT из Community Plugins
+2. Настроить beta plugin → Add beta plugin
+3. Указать локальный путь к папке плагина
+
+---
+
 ## 📋 Код-примеры
 
 ### Ribbon-кнопки (main.ts)
