@@ -83,13 +83,19 @@ export class CalendarView extends BaseView {
         const timeline = wrapper.createDiv({ cls: 'calendar-linear-timeline' });
         
         const grid = timeline.createDiv({ cls: 'timeline-grid' });
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startOfWeek = this.getWeekStart(new Date());
+        const todayCol = Math.floor((today.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
+        
         for (let i = 0; i < 7; i++) {
-            grid.createDiv({ cls: 'timeline-line' });
+            const line = grid.createDiv({ cls: 'timeline-line' });
+            if (i === todayCol && todayCol >= 0 && todayCol < 7) {
+                line.addClass('timeline-line-today');
+            }
         }
 
         const entriesContainer = timeline.createDiv({ cls: 'timeline-entries' });
-        const datesInWeek = this.getDatesInWeek();
-        const startOfWeek = this.getWeekStart(new Date());
         const weekEnd = this.getWeekEnd(startOfWeek);
 
         items.forEach(item => {

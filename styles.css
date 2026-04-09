@@ -1222,6 +1222,10 @@
     opacity: 0.3;
 }
 
+.timeline-line-today {
+    background: var(--background-modifier-hover);
+}
+
 .timeline-entries {
     position: relative;
     display: grid;
