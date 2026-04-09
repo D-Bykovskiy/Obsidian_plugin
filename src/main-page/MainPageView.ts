@@ -341,12 +341,16 @@ class NamingModal extends Modal {
         const input = new TextComponent(contentEl);
         input.setPlaceholder("Введите название...");
         input.onChange(value => this.name = value);
+        input.inputEl.classList.add('modal-input');
         input.inputEl.style.width = "100%";
         input.inputEl.style.marginBottom = "20px";
         
         requestAnimationFrame(() => {
             input.inputEl.focus();
         });
+        setTimeout(() => {
+            input.inputEl.focus();
+        }, 100);
 
         const btnContainer = contentEl.createDiv({ cls: 'modal-button-container' });
         

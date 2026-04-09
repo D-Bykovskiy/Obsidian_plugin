@@ -123,9 +123,9 @@ export class CalendarView extends BaseView {
             const label = entry.createDiv({ cls: 'entry-label' });
             label.createSpan({ text: item.name });
             
-            const duration = Math.ceil((actualEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-            if (duration > 1) {
-                entry.createDiv({ cls: 'entry-period', text: duration + 'д' });
+            if (item.responsible) {
+                const meta = entry.createDiv({ cls: 'entry-meta' });
+                meta.createSpan({ text: '👤 ' + item.responsible });
             }
 
             entry.onclick = () => this.openFile(item.path);

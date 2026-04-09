@@ -1242,8 +1242,10 @@
     font-size: 0.85em;
     cursor: pointer;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 4px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     margin-bottom: 4px;
@@ -1265,6 +1267,37 @@
 .task-entry {
     border-left: 4px solid #ffa500;
     background: rgba(255, 165, 0, 0.05);
+}
+
+.timeline-entry.priority-1 {
+    border-left: 4px solid #ff5252 !important;
+    background: rgba(255, 82, 82, 0.08) !important;
+}
+
+.timeline-entry.priority-2 {
+    border-left: 4px solid #ffb74d !important;
+    background: rgba(255, 183, 77, 0.08) !important;
+}
+
+.timeline-entry.priority-3 {
+    border-left: 4px solid #81c784 !important;
+    background: rgba(129, 199, 132, 0.08) !important;
+}
+
+.timeline-entry.priority-4 {
+    border-left: 4px solid #64b5f6 !important;
+    background: rgba(100, 181, 246, 0.08) !important;
+}
+
+.timeline-entry.priority-5 {
+    border-left: 4px solid #90a4ae !important;
+    background: rgba(144, 164, 174, 0.08) !important;
+}
+
+.entry-meta {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    margin-top: 4px;
 }
 
 /* Muted & Premium Kanban Card Styles */
@@ -1344,6 +1377,11 @@
     margin-bottom: 20px;
     max-height: 200px;
     overflow-y: auto;
+}
+
+.modal-input:focus {
+    outline: 2px solid var(--interactive-accent) !important;
+    border-color: var(--interactive-accent) !important;
 }
 
 .modal-filter-item {

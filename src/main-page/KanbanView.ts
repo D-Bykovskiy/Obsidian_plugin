@@ -138,7 +138,7 @@ export class KanbanView extends BaseView {
         
         let metaText = '';
         if (type === 'task') {
-            metaText = `Приоритет: ${item.priority} | ${item.deadline || 'Без срока'}`;
+            metaText = item.deadline || 'Без срока';
         } else {
             metaText = item.goal || 'Цель не задана';
         }
