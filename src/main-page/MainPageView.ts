@@ -127,7 +127,7 @@ export class MainPageView extends ItemView {
         if (container.querySelector('.main-page-header-container')) return;
         
         const headerContainer = container.createDiv({ cls: 'main-page-header-container' });
-        const version = this.plugin.manifest?.version || '1.5.0';
+        const version = this.plugin.manifest?.version || 'latest';
         headerContainer.createEl('h2', { text: 'Панель управления v' + version, cls: 'main-page-header' });
         
         const btnGroup = headerContainer.createDiv({ cls: 'monitoring-header-btns' });

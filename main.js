@@ -2642,7 +2642,7 @@ var MainPageView = class extends import_obsidian11.ItemView {
     if (container.querySelector(".main-page-header-container"))
       return;
     const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    const version = ((_a = this.plugin.manifest) == null ? void 0 : _a.version) || "1.5.0";
+    const version = ((_a = this.plugin.manifest) == null ? void 0 : _a.version) || "latest";
     headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v" + version, cls: "main-page-header" });
     const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
     btnGroup.createEl("button", {
