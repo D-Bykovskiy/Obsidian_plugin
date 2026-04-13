@@ -33,7 +33,7 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
         const cache = this.plugin.app.metadataCache.getFileCache(this.file);
         let currentDeadline = cache?.frontmatter?.['deadline'] || "";
         
-        const isSimpleNote = cache?.frontmatter?.['type'] === 'note';
+        const isSimpleNote = cache?.frontmatter?.['daily'] === true;
         
         const renderCollapsed = () => {
             rootContainer.empty();

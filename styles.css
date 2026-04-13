@@ -1072,8 +1072,20 @@
 }
 
 .delete-btn:hover {
-    background: rgba(255, 77, 77, 0.1) !important;
-    color: #ff4d4d !important;
+    background: rgba(180, 60, 60, 0.15) !important;
+    color: #c44 !important;
+}
+
+.delete-btn {
+    background-color: #a33 !important;
+    color: white !important;
+    opacity: 0.85;
+}
+
+.footer-btn {
+    opacity: 0.6;
+    background: rgba(var(--interactive-accent-rgb), 0.05);
+    color: var(--text-muted);
 }
 
 /* Vibrant Priority Colors */

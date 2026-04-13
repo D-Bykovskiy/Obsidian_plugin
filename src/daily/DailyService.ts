@@ -168,7 +168,8 @@ export class DailyService {
     async createDailyNote(): Promise<TFile> {
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0];
-        const folderPath = 'daily';
+        const userName = this.settings.currentUser || 'default';
+        const folderPath = `daily-${userName}`;
         const filePath = `${folderPath}/${dateStr}.md`;
 
         const existingFile = this.app.vault.getAbstractFileByPath(filePath);
@@ -232,7 +233,15 @@ export class DailyService {
             year: 'numeric'
         });
 
-        return `# 📅 ${dateFormatted} (${dayName}) • Неделя ${weekNumber}
+        return `---
+daily: true
+cssclasses: [hide-properties]
+---
+
+\`\`\`monitoring-duration
+\`\`\`
+
+# 📅 ${dateFormatted} (${dayName}) • Неделя ${weekNumber}
 
 ---
 

@@ -3,7 +3,7 @@
 > **⚠️ ВАЖНО: Перед началом работы ПРОЧТИ этот файл!**
 > Это инструкция по работе с проектом. Всегда сначала читай AGENTS.md, затем приступай к задаче.
 
-**Проект:** Monitoring Plugin v1.5.0  
+**Проект:** Monitoring Plugin v1.5.1  
 **Репозиторий:** https://github.com/D-Bykovskiy/Obsidian_plugin  
 **Vault для тестирования:** `C:\Users\talyu\Desktop\Obsidian_OMIS`  
 **Папка плагина в vault:** `C:\Users\talyu\Desktop\Obsidian_OMIS\.obsidian\plugins\Plagin-omis`
@@ -218,9 +218,10 @@ POST {baseUrl}/v1/chat/completions
 
 ### Как работает:
 1. Кнопка "📅 Daily" в панели управления
-2. Создаёт заметку `daily/YYYY-MM-DD.md`
+2. Создаёт заметку `daily-{user}/YYYY-MM-DD.md` (папка с именем пользователя)
 3. Парсит `routines.md` для регулярных задач
 4. Подтягивает задачи с deadline = сегодня
+5. Автоматически добавляет панель управления `monitoring-duration`
 
 ### Редактирование расписания:
 Файл `routines.md` в корне хранилища:

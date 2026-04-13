@@ -110,6 +110,18 @@ export default class MonitoringPlugin extends Plugin {
             ctx.addChild(child);
         });
 
+        this.registerMarkdownPostProcessor((el) => {
+            const activeFile = this.app.workspace.getActiveFile();
+            if (!activeFile || !(activeFile instanceof TFile)) return;
+            if (!activeFile.path.match(/^daily-.*\//)) return;
+            if (el.querySelector('.monitoring-duration-container')) return;
+
+            const container = el.createDiv({ cls: 'monitoring-duration-container' });
+            container.style.marginBottom = '20px';
+            const child = new MonitoringDurationChild(container, this, activeFile);
+            child.onload();
+        });
+
         this.addSettingTab(new MonitoringSettingTab(this.app, this));
 
         this.app.workspace.on('editor-menu', (menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo) => {
