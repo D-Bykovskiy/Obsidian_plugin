@@ -6,13 +6,15 @@ export class CalendarView extends BaseView {
     private projects: ProjectData[];
     private weekOffset: number;
     private onRefresh: () => void;
+    private setWeekOffset: (offset: number) => void;
 
-    constructor(app: any, tasks: TaskData[], projects: ProjectData[], weekOffset: number, onRefresh: () => void) {
+    constructor(app: any, tasks: TaskData[], projects: ProjectData[], weekOffset: number, onRefresh: () => void, setWeekOffset: (offset: number) => void) {
         super(app);
         this.tasks = tasks;
         this.projects = projects;
         this.weekOffset = weekOffset;
         this.onRefresh = onRefresh;
+        this.setWeekOffset = setWeekOffset;
     }
 
     render(container: Element): void {
@@ -30,24 +32,25 @@ export class CalendarView extends BaseView {
         navHeader.createEl('button', { 
             text: '← Пред. неделя', 
             cls: 'monitoring-refresh-btn' 
-        }).onclick = () => { this.weekOffset--; this.onRefresh(); };
+        }).onclick = () => { this.weekOffset--; this.setWeekOffset(this.weekOffset); this.onRefresh(); };
 
         navHeader.createEl('button', { 
             text: 'Сегодня', 
             cls: 'monitoring-glass-btn' 
-        }).onclick = () => { this.weekOffset = 0; this.onRefresh(); };
+        }).onclick = () => { this.weekOffset = 0; this.setWeekOffset(0); this.onRefresh(); };
 
         navHeader.createEl('button', { 
             text: 'След. неделя →', 
             cls: 'monitoring-refresh-btn' 
-        }).onclick = () => { this.weekOffset++; this.onRefresh(); };
+        }).onclick = () => { this.weekOffset++; this.setWeekOffset(this.weekOffset); this.onRefresh(); };
         
         const todayAt = new Date();
         const startOfWeek = this.getWeekStart(todayAt);
+        const weekNum = this.getWeekNumber(startOfWeek);
         
         navHeader.createSpan({ 
             cls: 'week-label', 
-            text: `Неделя: ${startOfWeek.toLocaleDateString()} - ${this.getWeekEnd(startOfWeek).toLocaleDateString()}` 
+            text: `Неделя ${weekNum}: ${startOfWeek.toLocaleDateString()} - ${this.getWeekEnd(startOfWeek).toLocaleDateString()}` 
         });
     }
 
@@ -146,6 +149,13 @@ export class CalendarView extends BaseView {
         weekEnd.setDate(startOfWeek.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
         return weekEnd;
+    }
+
+    private getWeekNumber(date: Date): number {
+        const startOfYear = new Date(date.getFullYear(), 0, 1);
+        const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+        const weekNum = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+        return weekNum;
     }
 
     private getDatesInWeek(): Date[] {

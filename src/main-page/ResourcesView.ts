@@ -36,9 +36,9 @@ export class ResourcesView extends BaseView {
         const content = container.createDiv({ cls: 'resources-content' });
 
         if (this.groups.length === 0) {
-            content.createEl('p', { 
-                text: 'Ресурсы не найдены. Нажмите "+ Группу" чтобы создать первую.', 
-                cls: 'empty-state-text' 
+            content.createDiv({ 
+                cls: 'empty-state-text',
+                text: 'Ресурсы не найдены. Нажмите "+ Группу" чтобы создать первую.'
             });
             return;
         }
@@ -61,15 +61,12 @@ export class ResourcesView extends BaseView {
         groupHeader.createEl('button', {
             cls: 'resource-add-btn',
             text: '+'
-        }).onclick = () => this.showAddResourceModal(group.name);
+        }).onclick = () => this.showAddResourceModal(group.name, group.icon);
 
         const groupItems = groupEl.createDiv({ cls: 'resource-group-items' });
 
         if (group.items.length === 0) {
-            groupItems.createEl('p', { 
-                text: 'Нет ресурсов', 
-                cls: 'empty-state-text' 
-            });
+            groupItems.createDiv({ text: 'Нет ресурсов', cls: 'empty-state-text' });
             return;
         }
 
@@ -125,7 +122,7 @@ export class ResourcesView extends BaseView {
         menu.style.top = `${e.clientY}px`;
         menu.style.zIndex = '1000';
 
-        const deleteBtn = menu.createEl('div', { 
+        const deleteBtn = menu.createDiv({ 
             cls: 'context-menu-item delete-item',
             text: 'Удалить'
         });
@@ -194,15 +191,15 @@ export class ResourcesView extends BaseView {
         }).open();
     }
 
-    private showAddResourceModal(groupName: string): void {
+    private showAddResourceModal(groupName: string, groupIcon: string = '⚙️'): void {
         new AddResourceModal(this.app, async (name, url, icon) => {
-            await this.addResource(groupName, name, url, icon);
+            await this.addResource(groupName, groupIcon, name, url, icon);
             this.render(this.containerEl.children[1]);
         }).open();
     }
 
     private async addGroup(name: string, icon: string): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath('resources.md') as TFile;
+        let file = this.app.vault.getAbstractFileByPath('resources.md') as TFile;
         let content = '';
         
         if (file) {
@@ -215,16 +212,18 @@ export class ResourcesView extends BaseView {
         if (file) {
             await this.app.vault.modify(file, content);
         } else {
-            await this.app.vault.create('resources.md', content);
+            await this.app.vault.create('resources.md', `# Ресурсы\n\n${content}`);
         }
         
         new Notice(`Группа "${name}" создана`);
     }
 
-    private async addResource(groupName: string, name: string, url: string, icon: string): Promise<void> {
-        const file = this.app.vault.getAbstractFileByPath('resources.md') as TFile;
+    private async addResource(groupName: string, groupIcon: string, name: string, url: string, icon: string): Promise<void> {
+        let file = this.app.vault.getAbstractFileByPath('resources.md') as TFile;
         if (!file) {
-            new Notice('Файл resources.md не найден');
+            await this.app.vault.create('resources.md', `# Ресурсы\n\n## ${groupIcon} ${groupName}\n- [${icon}](${url}) ${name}`);
+            new Notice(`Ресурс "${name}" добавлен`);
+            this.render(this.containerEl.children[1]);
             return;
         }
 
@@ -261,6 +260,7 @@ export class ResourcesView extends BaseView {
         
         await this.app.vault.modify(file, lines.join('\n'));
         new Notice(`Ресурс "${name}" добавлен`);
+        this.render(this.containerEl.children[1]);
     }
 
     private async parseResourcesFile(): Promise<ResourceGroup[]> {
@@ -278,21 +278,9 @@ export class ResourcesView extends BaseView {
 
     private getDefaultGroups(): ResourceGroup[] {
         return [
-            {
-                name: 'Администрирование',
-                icon: '⚙️',
-                items: []
-            },
-            {
-                name: 'Разработка',
-                icon: '🔧',
-                items: []
-            },
-            {
-                name: 'Справочные материалы',
-                icon: '📚',
-                items: []
-            }
+            { name: 'Администрирование', icon: '⚙️', items: [] },
+            { name: 'Разработка', icon: '🔧', items: [] },
+            { name: 'Справочные материалы', icon: '📚', items: [] }
         ];
     }
 
@@ -353,14 +341,11 @@ class AddGroupModal extends Modal {
         contentEl.createEl('h3', { text: 'Добавить группу' });
 
         const iconContainer = contentEl.createDiv({ cls: 'icon-picker-container' });
-        iconContainer.createEl('p', { text: 'Выберите иконку:', cls: 'icon-picker-label' });
+        iconContainer.createDiv({ text: 'Выберите иконку:', cls: 'icon-picker-label' });
         
         const iconGrid = iconContainer.createDiv({ cls: 'icon-picker-grid' });
         ICON_LIST.forEach(icon => {
-            const iconBtn = iconGrid.createEl('button', { 
-                cls: 'icon-picker-btn',
-                text: icon
-            });
+            const iconBtn = iconGrid.createEl('button', { text: icon, cls: 'icon-picker-btn' });
             iconBtn.onclick = () => {
                 this.selectedIcon = icon;
                 iconGrid.querySelectorAll('.icon-picker-btn').forEach(b => b.removeClass('selected'));
@@ -374,8 +359,7 @@ class AddGroupModal extends Modal {
         nameInput.inputEl.style.width = '100%';
         nameInput.inputEl.style.marginBottom = '20px';
 
-        const btnContainer = contentEl.createDiv();
-        new ButtonComponent(btnContainer)
+        new ButtonComponent(contentEl)
             .setButtonText('Добавить')
             .setCta()
             .onClick(() => {
@@ -402,14 +386,11 @@ class AddResourceModal extends Modal {
         contentEl.createEl('h3', { text: 'Добавить ресурс' });
 
         const iconContainer = contentEl.createDiv({ cls: 'icon-picker-container' });
-        iconContainer.createEl('p', { text: 'Выберите иконку:', cls: 'icon-picker-label' });
+        iconContainer.createDiv({ text: 'Выберите иконку:', cls: 'icon-picker-label' });
         
         const iconGrid = iconContainer.createDiv({ cls: 'icon-picker-grid' });
         ICON_LIST.forEach(icon => {
-            const iconBtn = iconGrid.createEl('button', { 
-                cls: 'icon-picker-btn',
-                text: icon
-            });
+            const iconBtn = iconGrid.createEl('button', { text: icon, cls: 'icon-picker-btn' });
             iconBtn.onclick = () => {
                 this.selectedIcon = icon;
                 iconGrid.querySelectorAll('.icon-picker-btn').forEach(b => b.removeClass('selected'));
@@ -424,12 +405,11 @@ class AddResourceModal extends Modal {
         nameInput.inputEl.style.marginBottom = '10px';
 
         const urlInput = new TextComponent(contentEl);
-        urlInput.setPlaceholder('URL или путь к папке (https://... или C:\...)');
+        urlInput.setPlaceholder('URL или путь к папке (https://... или C:\\...)');
         urlInput.inputEl.style.width = '100%';
         urlInput.inputEl.style.marginBottom = '20px';
 
-        const btnContainer = contentEl.createDiv();
-        new ButtonComponent(btnContainer)
+        new ButtonComponent(contentEl)
             .setButtonText('Добавить')
             .setCta()
             .onClick(() => {

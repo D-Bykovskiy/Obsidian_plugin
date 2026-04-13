@@ -107,7 +107,8 @@ export class MainPageView extends ItemView {
                     data.tasks,
                     data.projects,
                     this.calendarWeekOffset,
-                    () => this.refreshContent()
+                    () => this.refreshContent(),
+                    (offset: number) => { this.calendarWeekOffset = offset; }
                 );
                 calendarView.render(container);
             } else if (this.activeTab === 'notes') {
