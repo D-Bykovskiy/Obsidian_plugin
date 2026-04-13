@@ -859,7 +859,8 @@ var DailyService = class {
   async createDailyNote() {
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0];
-    const folderPath = "daily";
+    const userName = this.settings.currentUser || "default";
+    const folderPath = `daily-${userName}`;
     const filePath = `${folderPath}/${dateStr}.md`;
     const existingFile = this.app.vault.getAbstractFileByPath(filePath);
     if (existingFile instanceof import_obsidian2.TFile) {
@@ -918,7 +919,15 @@ var DailyService = class {
       month: "long",
       year: "numeric"
     });
-    return `# \u{1F4C5} ${dateFormatted} (${dayName}) \u2022 \u041D\u0435\u0434\u0435\u043B\u044F ${weekNumber}
+    return `---
+daily: true
+cssclasses: [hide-properties]
+---
+
+\`\`\`monitoring-duration
+\`\`\`
+
+# \u{1F4C5} ${dateFormatted} (${dayName}) \u2022 \u041D\u0435\u0434\u0435\u043B\u044F ${weekNumber}
 
 ---
 
@@ -1778,7 +1787,7 @@ var KanbanView = class extends BaseView {
     card.createDiv({ cls: "card-title", text: item.name });
     let metaText = "";
     if (type === "task") {
-      metaText = `\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442: ${item.priority} | ${item.deadline || "\u0411\u0435\u0437 \u0441\u0440\u043E\u043A\u0430"}`;
+      metaText = item.deadline || "\u0411\u0435\u0437 \u0441\u0440\u043E\u043A\u0430";
     } else {
       metaText = item.goal || "\u0426\u0435\u043B\u044C \u043D\u0435 \u0437\u0430\u0434\u0430\u043D\u0430";
     }
@@ -1971,12 +1980,13 @@ var ResponsibleModal = class extends import_obsidian9.Modal {
 
 // src/main-page/CalendarView.ts
 var CalendarView = class extends BaseView {
-  constructor(app, tasks, projects, weekOffset, onRefresh) {
+  constructor(app, tasks, projects, weekOffset, onRefresh, setWeekOffset) {
     super(app);
     this.tasks = tasks;
     this.projects = projects;
     this.weekOffset = weekOffset;
     this.onRefresh = onRefresh;
+    this.setWeekOffset = setWeekOffset;
   }
   render(container) {
     const wrapper = container.createDiv({ cls: "monitoring-calendar-wrapper" });
@@ -1992,6 +2002,7 @@ var CalendarView = class extends BaseView {
       cls: "monitoring-refresh-btn"
     }).onclick = () => {
       this.weekOffset--;
+      this.setWeekOffset(this.weekOffset);
       this.onRefresh();
     };
     navHeader.createEl("button", {
@@ -1999,6 +2010,7 @@ var CalendarView = class extends BaseView {
       cls: "monitoring-glass-btn"
     }).onclick = () => {
       this.weekOffset = 0;
+      this.setWeekOffset(0);
       this.onRefresh();
     };
     navHeader.createEl("button", {
@@ -2006,13 +2018,15 @@ var CalendarView = class extends BaseView {
       cls: "monitoring-refresh-btn"
     }).onclick = () => {
       this.weekOffset++;
+      this.setWeekOffset(this.weekOffset);
       this.onRefresh();
     };
     const todayAt = new Date();
     const startOfWeek = this.getWeekStart(todayAt);
+    const weekNum = this.getWeekNumber(startOfWeek);
     navHeader.createSpan({
       cls: "week-label",
-      text: `\u041D\u0435\u0434\u0435\u043B\u044F: ${startOfWeek.toLocaleDateString()} - ${this.getWeekEnd(startOfWeek).toLocaleDateString()}`
+      text: `\u041D\u0435\u0434\u0435\u043B\u044F ${weekNum}: ${startOfWeek.toLocaleDateString()} - ${this.getWeekEnd(startOfWeek).toLocaleDateString()}`
     });
   }
   renderWeekHeader(wrapper) {
@@ -2038,12 +2052,17 @@ var CalendarView = class extends BaseView {
     wrapper.createEl("h3", { text: title, attr: { style: "margin-top: 30px;" } });
     const timeline = wrapper.createDiv({ cls: "calendar-linear-timeline" });
     const grid = timeline.createDiv({ cls: "timeline-grid" });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startOfWeek = this.getWeekStart(new Date());
+    const todayCol = Math.floor((today.getTime() - startOfWeek.getTime()) / (1e3 * 60 * 60 * 24));
     for (let i = 0; i < 7; i++) {
-      grid.createDiv({ cls: "timeline-line" });
+      const line = grid.createDiv({ cls: "timeline-line" });
+      if (i === todayCol && todayCol >= 0 && todayCol < 7) {
+        line.addClass("timeline-line-today");
+      }
     }
     const entriesContainer = timeline.createDiv({ cls: "timeline-entries" });
-    const datesInWeek = this.getDatesInWeek();
-    const startOfWeek = this.getWeekStart(new Date());
     const weekEnd = this.getWeekEnd(startOfWeek);
     items.forEach((item) => {
       const { start, end } = this.getItemDates(item, type);
@@ -2066,9 +2085,9 @@ var CalendarView = class extends BaseView {
       });
       const label = entry.createDiv({ cls: "entry-label" });
       label.createSpan({ text: item.name });
-      const duration = Math.ceil((actualEnd.getTime() - start.getTime()) / (1e3 * 60 * 60 * 24)) + 1;
-      if (duration > 1) {
-        entry.createDiv({ cls: "entry-period", text: duration + "\u0434" });
+      if (item.responsible) {
+        const meta = entry.createDiv({ cls: "entry-meta" });
+        meta.createSpan({ text: "\u{1F464} " + item.responsible });
       }
       entry.onclick = () => this.openFile(item.path);
     });
@@ -2086,6 +2105,12 @@ var CalendarView = class extends BaseView {
     weekEnd.setDate(startOfWeek.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
     return weekEnd;
+  }
+  getWeekNumber(date) {
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1e3));
+    const weekNum = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    return weekNum;
   }
   getDatesInWeek() {
     const startOfWeek = this.getWeekStart(new Date());
@@ -2190,9 +2215,9 @@ var ResourcesView = class extends BaseView {
     }).onclick = () => this.showAddGroupModal();
     const content = container.createDiv({ cls: "resources-content" });
     if (this.groups.length === 0) {
-      content.createEl("p", {
-        text: '\u0420\u0435\u0441\u0443\u0440\u0441\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B. \u041D\u0430\u0436\u043C\u0438\u0442\u0435 "+ \u0413\u0440\u0443\u043F\u043F\u0443" \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0435\u0440\u0432\u0443\u044E.',
-        cls: "empty-state-text"
+      content.createDiv({
+        cls: "empty-state-text",
+        text: '\u0420\u0435\u0441\u0443\u0440\u0441\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B. \u041D\u0430\u0436\u043C\u0438\u0442\u0435 "+ \u0413\u0440\u0443\u043F\u043F\u0443" \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0435\u0440\u0432\u0443\u044E.'
       });
       return;
     }
@@ -2211,13 +2236,10 @@ var ResourcesView = class extends BaseView {
     groupHeader.createEl("button", {
       cls: "resource-add-btn",
       text: "+"
-    }).onclick = () => this.showAddResourceModal(group.name);
+    }).onclick = () => this.showAddResourceModal(group.name, group.icon);
     const groupItems = groupEl.createDiv({ cls: "resource-group-items" });
     if (group.items.length === 0) {
-      groupItems.createEl("p", {
-        text: "\u041D\u0435\u0442 \u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432",
-        cls: "empty-state-text"
-      });
+      groupItems.createDiv({ text: "\u041D\u0435\u0442 \u0440\u0435\u0441\u0443\u0440\u0441\u043E\u0432", cls: "empty-state-text" });
       return;
     }
     for (const item of group.items) {
@@ -2264,7 +2286,7 @@ var ResourcesView = class extends BaseView {
     menu.style.left = `${e.clientX}px`;
     menu.style.top = `${e.clientY}px`;
     menu.style.zIndex = "1000";
-    const deleteBtn = menu.createEl("div", {
+    const deleteBtn = menu.createDiv({
       cls: "context-menu-item delete-item",
       text: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"
     });
@@ -2320,14 +2342,14 @@ var ResourcesView = class extends BaseView {
       this.render(this.containerEl.children[1]);
     }).open();
   }
-  showAddResourceModal(groupName) {
+  showAddResourceModal(groupName, groupIcon = "\u2699\uFE0F") {
     new AddResourceModal(this.app, async (name, url, icon) => {
-      await this.addResource(groupName, name, url, icon);
+      await this.addResource(groupName, groupIcon, name, url, icon);
       this.render(this.containerEl.children[1]);
     }).open();
   }
   async addGroup(name, icon) {
-    const file = this.app.vault.getAbstractFileByPath("resources.md");
+    let file = this.app.vault.getAbstractFileByPath("resources.md");
     let content = "";
     if (file) {
       content = await this.app.vault.read(file);
@@ -2337,14 +2359,21 @@ var ResourcesView = class extends BaseView {
     if (file) {
       await this.app.vault.modify(file, content);
     } else {
-      await this.app.vault.create("resources.md", content);
+      await this.app.vault.create("resources.md", `# \u0420\u0435\u0441\u0443\u0440\u0441\u044B
+
+${content}`);
     }
     new import_obsidian10.Notice(`\u0413\u0440\u0443\u043F\u043F\u0430 "${name}" \u0441\u043E\u0437\u0434\u0430\u043D\u0430`);
   }
-  async addResource(groupName, name, url, icon) {
-    const file = this.app.vault.getAbstractFileByPath("resources.md");
+  async addResource(groupName, groupIcon, name, url, icon) {
+    let file = this.app.vault.getAbstractFileByPath("resources.md");
     if (!file) {
-      new import_obsidian10.Notice("\u0424\u0430\u0439\u043B resources.md \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D");
+      await this.app.vault.create("resources.md", `# \u0420\u0435\u0441\u0443\u0440\u0441\u044B
+
+## ${groupIcon} ${groupName}
+- [${icon}](${url}) ${name}`);
+      new import_obsidian10.Notice(`\u0420\u0435\u0441\u0443\u0440\u0441 "${name}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D`);
+      this.render(this.containerEl.children[1]);
       return;
     }
     let content = await this.app.vault.read(file);
@@ -2374,6 +2403,7 @@ var ResourcesView = class extends BaseView {
     lines.splice(insertPos, 0, newLine);
     await this.app.vault.modify(file, lines.join("\n"));
     new import_obsidian10.Notice(`\u0420\u0435\u0441\u0443\u0440\u0441 "${name}" \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D`);
+    this.render(this.containerEl.children[1]);
   }
   async parseResourcesFile() {
     const file = this.app.vault.getAbstractFileByPath("resources.md");
@@ -2389,21 +2419,9 @@ var ResourcesView = class extends BaseView {
   }
   getDefaultGroups() {
     return [
-      {
-        name: "\u0410\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
-        icon: "\u2699\uFE0F",
-        items: []
-      },
-      {
-        name: "\u0420\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430",
-        icon: "\u{1F527}",
-        items: []
-      },
-      {
-        name: "\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u044B\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B",
-        icon: "\u{1F4DA}",
-        items: []
-      }
+      { name: "\u0410\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435", icon: "\u2699\uFE0F", items: [] },
+      { name: "\u0420\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430", icon: "\u{1F527}", items: [] },
+      { name: "\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u044B\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B", icon: "\u{1F4DA}", items: [] }
     ];
   }
   parseResourcesContent(content) {
@@ -2454,13 +2472,10 @@ var AddGroupModal = class extends import_obsidian10.Modal {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443" });
     const iconContainer = contentEl.createDiv({ cls: "icon-picker-container" });
-    iconContainer.createEl("p", { text: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u043A\u043E\u043D\u043A\u0443:", cls: "icon-picker-label" });
+    iconContainer.createDiv({ text: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u043A\u043E\u043D\u043A\u0443:", cls: "icon-picker-label" });
     const iconGrid = iconContainer.createDiv({ cls: "icon-picker-grid" });
     ICON_LIST.forEach((icon) => {
-      const iconBtn = iconGrid.createEl("button", {
-        cls: "icon-picker-btn",
-        text: icon
-      });
+      const iconBtn = iconGrid.createEl("button", { text: icon, cls: "icon-picker-btn" });
       iconBtn.onclick = () => {
         this.selectedIcon = icon;
         iconGrid.querySelectorAll(".icon-picker-btn").forEach((b) => b.removeClass("selected"));
@@ -2472,8 +2487,7 @@ var AddGroupModal = class extends import_obsidian10.Modal {
     nameInput.setPlaceholder("\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0433\u0440\u0443\u043F\u043F\u044B");
     nameInput.inputEl.style.width = "100%";
     nameInput.inputEl.style.marginBottom = "20px";
-    const btnContainer = contentEl.createDiv();
-    new import_obsidian10.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian10.ButtonComponent(contentEl).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       const name = nameInput.getValue().trim();
       if (name) {
         this.onSubmit(name, this.selectedIcon);
@@ -2493,13 +2507,10 @@ var AddResourceModal = class extends import_obsidian10.Modal {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0435\u0441\u0443\u0440\u0441" });
     const iconContainer = contentEl.createDiv({ cls: "icon-picker-container" });
-    iconContainer.createEl("p", { text: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u043A\u043E\u043D\u043A\u0443:", cls: "icon-picker-label" });
+    iconContainer.createDiv({ text: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u043A\u043E\u043D\u043A\u0443:", cls: "icon-picker-label" });
     const iconGrid = iconContainer.createDiv({ cls: "icon-picker-grid" });
     ICON_LIST.forEach((icon) => {
-      const iconBtn = iconGrid.createEl("button", {
-        cls: "icon-picker-btn",
-        text: icon
-      });
+      const iconBtn = iconGrid.createEl("button", { text: icon, cls: "icon-picker-btn" });
       iconBtn.onclick = () => {
         this.selectedIcon = icon;
         iconGrid.querySelectorAll(".icon-picker-btn").forEach((b) => b.removeClass("selected"));
@@ -2512,11 +2523,10 @@ var AddResourceModal = class extends import_obsidian10.Modal {
     nameInput.inputEl.style.width = "100%";
     nameInput.inputEl.style.marginBottom = "10px";
     const urlInput = new import_obsidian10.TextComponent(contentEl);
-    urlInput.setPlaceholder("URL \u0438\u043B\u0438 \u043F\u0443\u0442\u044C \u043A \u043F\u0430\u043F\u043A\u0435 (https://... \u0438\u043B\u0438 C:...)");
+    urlInput.setPlaceholder("URL \u0438\u043B\u0438 \u043F\u0443\u0442\u044C \u043A \u043F\u0430\u043F\u043A\u0435 (https://... \u0438\u043B\u0438 C:\\...)");
     urlInput.inputEl.style.width = "100%";
     urlInput.inputEl.style.marginBottom = "20px";
-    const btnContainer = contentEl.createDiv();
-    new import_obsidian10.ButtonComponent(btnContainer).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
+    new import_obsidian10.ButtonComponent(contentEl).setButtonText("\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C").setCta().onClick(() => {
       const name = nameInput.getValue().trim();
       const url = urlInput.getValue().trim();
       if (name && url) {
@@ -2611,7 +2621,10 @@ var MainPageView = class extends import_obsidian11.ItemView {
           data.tasks,
           data.projects,
           this.calendarWeekOffset,
-          () => this.refreshContent()
+          () => this.refreshContent(),
+          (offset) => {
+            this.calendarWeekOffset = offset;
+          }
         );
         calendarView.render(container);
       } else if (this.activeTab === "notes") {
@@ -2625,10 +2638,12 @@ var MainPageView = class extends import_obsidian11.ItemView {
     }
   }
   renderHeader(container) {
+    var _a;
     if (container.querySelector(".main-page-header-container"))
       return;
     const headerContainer = container.createDiv({ cls: "main-page-header-container" });
-    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v1.4.0", cls: "main-page-header" });
+    const version = ((_a = this.plugin.manifest) == null ? void 0 : _a.version) || "1.5.0";
+    headerContainer.createEl("h2", { text: "\u041F\u0430\u043D\u0435\u043B\u044C \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F v" + version, cls: "main-page-header" });
     const btnGroup = headerContainer.createDiv({ cls: "monitoring-header-btns" });
     btnGroup.createEl("button", {
       cls: "monitoring-refresh-btn",
@@ -2807,11 +2822,15 @@ var NamingModal = class extends import_obsidian11.Modal {
     const input = new import_obsidian11.TextComponent(contentEl);
     input.setPlaceholder("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435...");
     input.onChange((value) => this.name = value);
+    input.inputEl.classList.add("modal-input");
     input.inputEl.style.width = "100%";
     input.inputEl.style.marginBottom = "20px";
     requestAnimationFrame(() => {
       input.inputEl.focus();
     });
+    setTimeout(() => {
+      input.inputEl.focus();
+    }, 100);
     const btnContainer = contentEl.createDiv({ cls: "modal-button-container" });
     new import_obsidian11.ButtonComponent(btnContainer).setButtonText("\u0421\u043E\u0437\u0434\u0430\u0442\u044C").setCta().onClick(() => this.submit());
     input.inputEl.addEventListener("keydown", (e) => {
@@ -3145,7 +3164,7 @@ var MonitoringDurationChild = class extends import_obsidian17.MarkdownRenderChil
     rootContainer.empty();
     const cache = this.plugin.app.metadataCache.getFileCache(this.file);
     let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
-    const isSimpleNote = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["type"]) === "note";
+    const isSimpleNote = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["daily"]) === true;
     const renderCollapsed = () => {
       var _a2, _b2, _c, _d, _e;
       rootContainer.empty();
@@ -3467,6 +3486,19 @@ var MonitoringPlugin = class extends import_obsidian18.Plugin {
         return;
       const child = new MonitoringDurationChild(el, this, file);
       ctx.addChild(child);
+    });
+    this.registerMarkdownPostProcessor((el) => {
+      const activeFile = this.app.workspace.getActiveFile();
+      if (!activeFile || !(activeFile instanceof import_obsidian18.TFile))
+        return;
+      if (!activeFile.path.match(/^daily-.*\//))
+        return;
+      if (el.querySelector(".monitoring-duration-container"))
+        return;
+      const container = el.createDiv({ cls: "monitoring-duration-container" });
+      container.style.marginBottom = "20px";
+      const child = new MonitoringDurationChild(container, this, activeFile);
+      child.onload();
     });
     this.addSettingTab(new MonitoringSettingTab(this.app, this));
     this.app.workspace.on("editor-menu", (menu, editor, info) => {

@@ -3,7 +3,7 @@
 > **⚠️ ВАЖНО: Перед началом работы ПРОЧТИ этот файл!**
 > Это инструкция по работе с проектом. Всегда сначала читай AGENTS.md, затем приступай к задаче.
 
-**Проект:** Monitoring Plugin v1.5.1  
+**Проект:** Monitoring Plugin v1.5.2  
 **Репозиторий:** https://github.com/D-Bykovskiy/Obsidian_plugin  
 **Vault для тестирования:** `C:\Users\talyu\Desktop\Obsidian_OMIS`  
 **Папка плагина в vault:** `C:\Users\talyu\Desktop\Obsidian_OMIS\.obsidian\plugins\Plagin-omis`
