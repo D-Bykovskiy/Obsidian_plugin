@@ -3,7 +3,7 @@
 > **⚠️ ВАЖНО: Перед началом работы ПРОЧТИ этот файл!**
 > Это инструкция по работе с проектом. Всегда сначала читай AGENTS.md, затем приступай к задаче.
 
-**Проект:** Monitoring Plugin v1.5.2  
+**Проект:** OMIS Plugin v1.5.3  
 **Репозиторий:** https://github.com/D-Bykovskiy/Obsidian_plugin  
 **Vault для тестирования:** `C:\Users\talyu\Desktop\Obsidian_OMIS`  
 **Папка плагина в vault:** `C:\Users\talyu\Desktop\Obsidian_OMIS\.obsidian\plugins\Plagin-omis`
@@ -144,7 +144,7 @@ git add . && git commit -m "описание" && git push
 ## 🚀 Установка без GitHub
 
 ### Способ 1: Ручное копирование
-1. Скачать ZIP архив `monitoring-plugin-v1.4.0.zip` (доступен в репозитории)
+1. Скачать ZIP архив `OMIS-plugin-v1.5.3.zip` (доступен в репозитории)
 2. Распаковать в папку плагина:
    ```
    <vault>/.obsidian/plugins/Plagin-omis/
@@ -293,6 +293,25 @@ tue:
 ### Поля:
 - `responsible` — ответственный в задачах и проектах
 - `author` — автор заметок
+
+---
+
+## 🔗 Parent Link (Родительская связь)
+
+### Как работает:
+При создании задачи из проекта, другой задачи или заметки, в новой задаче:
+1. В frontmatter добавляется поле `parent: "[[ИмяРодителя]]"`
+2. Под панелью кнопок отображается кликабельная ссылка на родителя
+
+### Пример:
+```
+parent: "[[Project-МойПроект]]"
+```
+Отображение: `Проект: [[Project-МойПроект]]`
+
+### Файлы:
+- `src/notes/TemplateManager.ts` — создание задачи с parent
+- `src/MonitoringDurationChild.ts` — отображение ссылки в UI
 
 ---
 

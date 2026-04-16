@@ -120,7 +120,7 @@ ${email.bodyPreview}\n---`;
         await this.app.vault.modify(file, content);
     }
 
-    async createTaskNote(name: string, initialTags: string[] = [], linkedProject: string = ""): Promise<TFile> {
+    async createTaskNote(name: string, initialTags: string[] = [], linkedProject: string = "", parentFile: TFile | null = null): Promise<TFile> {
         const vault = this.app.vault;
         const folder = "tasks";
         await this.ensureFolder(folder);
@@ -132,13 +132,19 @@ ${email.bodyPreview}\n---`;
         const tags = [...new Set(['task', ...initialTags])];
         const tagsStr = tags.length > 1 ? `[${tags.join(', ')}]` : tags[0];
 
+        // Add parent to frontmatter if exists
+        let parentFrontmatter = '';
+        if (parentFile) {
+            parentFrontmatter = `\nparent: "[[${parentFile.basename}]]"`;
+        }
+
         const content = `---
 type: task
 status: "To Do"
 priority: 3
 created: ${dateStr}
 deadline: ${dateStr} 10:00
-linked_project: "${linkedProject}"
+linked_project: "${linkedProject}"${parentFrontmatter}
 tags: ${tagsStr}
 responsible: "${this.settings.currentUser}"
 cssclasses: [hide-properties]

@@ -133,7 +133,7 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
                 const tag = 'Project' + projectName.replace(/\s+/g, '').replace(/[^\w\u0400-\u04FF]/g, '');
                 
                 new NewTaskModal(this.plugin.app, async (name) => {
-                    const newF = await this.plugin.templateManager.createTaskNote(name, [tag], projectName);
+                    const newF = await this.plugin.templateManager.createTaskNote(name, [tag], projectName, this.file);
                     if (newF) {
                         await this.plugin.templateManager.updateSubtaskTable(this.file, newF);
                         await this.plugin.app.workspace.getLeaf(false).openFile(newF);
@@ -154,6 +154,30 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
                 const pill = tagList.createSpan({ cls: 'monitoring-tag-pill', text: `#${tag}` });
                 pill.onclick = () => { if (confirm(`Удалить #${tag}?`)) this.plugin.removeTagFromNote(this.file, tag); };
             });
+
+            const parentLink = cache?.frontmatter?.['parent'];
+            if (parentLink) {
+                const parentMatch = parentLink.match(/\[\[([^\]]+)\]\]/);
+                if (parentMatch) {
+                    const parentBasename = parentMatch[1];
+                    const parentType = parentBasename.startsWith('Project-') ? 'Проект' : 
+                                      parentBasename.startsWith('Task-') ? 'Задача' : 'Заметка';
+                    const parentContainer = rootContainer.createDiv({ cls: 'monitoring-parent-link' });
+                    parentContainer.createSpan({ text: `${parentType}: `, cls: 'monitoring-parent-label' });
+                    const link = parentContainer.createEl('a', { 
+                        href: `#`,
+                        text: `[[${parentBasename}]]`,
+                        cls: 'monitoring-parent-link-text'
+                    });
+                    link.onclick = async (e) => {
+                        e.preventDefault();
+                        const targetFile = this.plugin.app.vault.getAbstractFileByPath(`${parentBasename}.md`);
+                        if (targetFile instanceof TFile) {
+                            this.plugin.app.workspace.getLeaf(false).openFile(targetFile);
+                        }
+                    };
+                }
+            }
         };
 
         const renderExpanded = () => {
@@ -161,51 +185,23 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
             const container = rootContainer.createDiv({ cls: 'monitoring-duration-ui' });
             let viewedMonth = new Date(); viewedMonth.setDate(1);
             let startDate: Date | null = null; let endDate: Date | null = null;
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            
             if (currentDeadline) {
                 try {
                     const parts = currentDeadline.split(' to ');
-                    if (parts.length === 2) { startDate = new Date(parts[0]); endDate = new Date(parts[1].split(' ')[0]); }
-                    else { startDate = new Date(currentDeadline.split(' ')[0]); }
+                    if (parts.length === 2) { 
+                        startDate = new Date(parts[0]); 
+                        endDate = new Date(parts[1].split(' ')[0]); 
+                    }
+                    else { 
+                        startDate = new Date(currentDeadline.split(' ')[0]); 
+                    }
                 } catch(e) {}
             }
 
             const calendarBody = container.createDiv();
-            const updateCalendar = () => {
-                calendarBody.empty();
-                const header = calendarBody.createDiv({ cls: 'monitoring-calendar-header' });
-                header.createEl('button', { cls: 'calendar-nav-btn', text: '‹' }).onclick = () => { viewedMonth.setMonth(viewedMonth.getMonth() - 1); updateCalendar(); };
-                header.createSpan({ cls: 'calendar-month-label', text: `${["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"][viewedMonth.getMonth()]} ${viewedMonth.getFullYear()}` });
-                header.createEl('button', { cls: 'calendar-nav-btn', text: '›' }).onclick = () => { viewedMonth.setMonth(viewedMonth.getMonth() + 1); updateCalendar(); };
-
-                const weekGrid = calendarBody.createDiv({ cls: 'calendar-weekday-labels' });
-                ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => weekGrid.createSpan({ text: d }));
-
-                const daysGrid = calendarBody.createDiv({ cls: 'calendar-days-grid' });
-                const firstDay = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1).getDay() || 7;
-                const daysInMonth = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth() + 1, 0).getDate();
-                const todayStr = new Date().toISOString().split('T')[0];
-
-                for (let i = 1; i < firstDay; i++) daysGrid.createSpan({ cls: 'calendar-empty-cell' });
-                let counter = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1);
-                for (let d = 1; d <= daysInMonth; d++) {
-                    counter = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), d);
-                    const dStr = counter.toISOString().split('T')[0];
-                    const cell = daysGrid.createDiv({ cls: 'calendar-day-cell' });
-                    cell.createSpan({ cls: 'calendar-day-num', text: d.toString() });
-                    if (d.getMonth() !== viewedMonth.getMonth()) cell.addClass('is-other-month');
-                    if (dStr === todayStr) cell.createDiv({ cls: 'calendar-today-mark' });
-                    if ((startDate && dStr === startDate.toISOString().split('T')[0]) || (endDate && dStr === endDate.toISOString().split('T')[0])) cell.addClass('is-selected');
-                    if (startDate && endDate && d > startDate && d < endDate) cell.addClass('is-in-range');
-                    cell.onclick = () => {
-                        if (!startDate || (startDate && endDate)) { startDate = d; endDate = null; }
-                        else if (startDate) { if (d > startDate) endDate = d; else { startDate = d; endDate = null; } }
-                        updateCalendar();
-                    };
-                    counter.setDate(counter.getDate() + 1);
-                }
-                syncInputs();
-            };
-
+            
             const controls = container.createDiv({ cls: 'duration-controls', attr: { style: 'flex-direction: column; align-items: stretch; gap: 10px; display: flex;' } });
             const inputsRow = controls.createDiv({ attr: { style: 'display: flex; gap: 10px; align-items: center; flex-wrap: wrap;' } });
             const sInput = inputsRow.createEl('input', { type: 'date', cls: 'duration-date-input' });
@@ -217,15 +213,102 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
             tInput.value = currentDeadline.includes(':') ? currentDeadline.split(' ').pop() || "10:00" : "10:00";
 
             const syncInputs = () => {
-                if (startDate) sInput.value = startDate.toISOString().split('T')[0];
-                if (endDate) { eInput.value = endDate.toISOString().split('T')[0]; eInput.style.display = 'block'; toSpan.style.display = 'inline'; }
-                else { eInput.style.display = 'none'; toSpan.style.display = 'none'; }
+                if (startDate) {
+                    sInput.value = startDate.toISOString().split('T')[0];
+                }
+                if (endDate) { 
+                    eInput.value = endDate.toISOString().split('T')[0]; 
+                    eInput.style.display = 'block'; 
+                    toSpan.style.display = 'inline'; 
+                } else {
+                    eInput.style.display = 'none'; 
+                    toSpan.style.display = 'none';
+                }
+            };
+
+            const updateCalendar = () => {
+                calendarBody.empty();
+                const header = calendarBody.createDiv({ cls: 'monitoring-calendar-header' });
+                header.createEl('button', { cls: 'calendar-nav-btn', text: '‹' }).onclick = () => { viewedMonth.setMonth(viewedMonth.getMonth() - 1); updateCalendar(); };
+                const monthLabel = header.createSpan({ cls: 'calendar-month-label', text: `${["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"][viewedMonth.getMonth()]} ${viewedMonth.getFullYear()}` });
+                header.createEl('button', { cls: 'calendar-nav-btn', text: '›' }).onclick = () => { viewedMonth.setMonth(viewedMonth.getMonth() + 1); updateCalendar(); };
+                const modeIndicator = header.createSpan({ 
+                    cls: 'calendar-mode-indicator', 
+                    text: endDate ? '📅 Период' : '📆 День'
+                });
+
+                const weekGrid = calendarBody.createDiv({ cls: 'calendar-weekday-labels' });
+                ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => weekGrid.createSpan({ text: d }));
+
+                const daysGrid = calendarBody.createDiv({ cls: 'calendar-days-grid' });
+                const firstDay = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1).getDay();
+                const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1;
+                const daysInMonth = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth() + 1, 0).getDate();
+                const todayStr = today.toISOString().split('T')[0];
+
+                for (let i = 0; i < adjustedFirstDay; i++) daysGrid.createDiv({ cls: 'calendar-empty-cell' });
+                
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const cellDate = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), d);
+                    const dStr = cellDate.toISOString().split('T')[0];
+                    const cell = daysGrid.createDiv({ cls: 'calendar-day-cell' });
+                    cell.createSpan({ cls: 'calendar-day-num', text: d.toString() });
+                    if (dStr === todayStr) cell.createDiv({ cls: 'calendar-today-mark' });
+                    
+                    const isStart = !!startDate && dStr === startDate.toISOString().split('T')[0];
+                    const isEnd = !!endDate && dStr === endDate.toISOString().split('T')[0];
+                    const isInRange = !!startDate && !!endDate && cellDate > startDate && cellDate < endDate;
+                    
+                    if (isStart || isEnd) cell.addClass('is-selected');
+                    if (isInRange) cell.addClass('is-in-range');
+                    
+                    cell.onclick = () => {
+                        const clickedDate = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), d);
+                        clickedDate.setHours(0, 0, 0, 0);
+                        
+                        if (!startDate) {
+                            startDate = clickedDate;
+                        } else if (!endDate) {
+                            if (clickedDate >= startDate) {
+                                endDate = clickedDate;
+                            } else {
+                                startDate = clickedDate;
+                            }
+                        } else {
+                            startDate = clickedDate;
+                            endDate = null;
+                        }
+                        syncInputs();
+                        updateCalendar();
+                    };
+                }
+                syncInputs();
+            };
+
+            sInput.onchange = () => {
+                if (sInput.value) {
+                    startDate = new Date(sInput.value);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = null;
+                }
+                updateCalendar();
+            };
+            
+            eInput.onchange = () => {
+                if (eInput.value) {
+                    endDate = new Date(eInput.value);
+                    endDate.setHours(0, 0, 0, 0);
+                } else {
+                    endDate = null;
+                }
+                updateCalendar();
             };
 
             const bRow = controls.createDiv({ attr: { style: 'display: flex; gap: 10px; justify-content: flex-end;' } });
             bRow.createEl('button', { text: 'Сохранить', cls: 'monitoring-report-btn' }).onclick = async () => {
-                let dStr = sInput.value;
-                if (eInput.style.display !== 'none' && eInput.value) dStr += ` to ${eInput.value}`;
+                if (!startDate) return;
+                let dStr = startDate.toISOString().split('T')[0];
+                if (endDate) dStr += ` to ${endDate.toISOString().split('T')[0]}`;
                 dStr += ` ${tInput.value}`;
                 await this.plugin.app.fileManager.processFrontMatter(this.file, (fm) => { fm['deadline'] = dStr; });
                 renderCollapsed();

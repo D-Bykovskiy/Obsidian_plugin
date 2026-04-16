@@ -794,6 +794,15 @@
     opacity: 0.9;
 }
 
+.calendar-mode-indicator {
+    font-size: 12px;
+    padding: 2px 8px;
+    background: rgba(var(--interactive-accent-rgb), 0.15);
+    border-radius: 4px;
+    margin-left: 10px;
+    opacity: 0.9;
+}
+
 .monitoring-calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -810,6 +819,16 @@
     font-size: 0.7em;
     opacity: 0.5;
     text-transform: uppercase;
+}
+
+.calendar-days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-empty-cell {
+    min-height: 45px;
 }
 
 .calendar-day-cell {
@@ -1145,6 +1164,32 @@
     content: ' ×';
     opacity: 0.5;
     margin-left: 4px;
+}
+
+/* Parent Link */
+.monitoring-parent-link {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(var(--interactive-accent-rgb), 0.08);
+    border-radius: 8px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.monitoring-parent-label {
+    opacity: 0.7;
+}
+
+.monitoring-parent-link-text {
+    color: var(--text-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.monitoring-parent-link-text:hover {
+    text-decoration: underline;
 }
 
 /* Tag Modal Suggestions */
