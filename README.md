@@ -1,10 +1,10 @@
-# Monitoring Plugin для Obsidian
+# OMIS Plugin для Obsidian
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.5.4-blue)
 ![Obsidian](https://img.shields.io/badge/Obsidian-0.15.0+-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**Monitoring Plugin** — профессиональный инструмент для руководителей, превращающий Obsidian в панель управления (Dashboard). Плагин объединяет почту Outlook, корпоративный LLM и гибкость Obsidian для автоматизации мониторинга и управления задачами.
+**OMIS Plugin** — профессиональный инструмент для руководителей, превращающий Obsidian в панель управления (Dashboard). Плагин объединяет почту Outlook, корпоративный LLM и гибкость Obsidian для автоматизации мониторинга и управления задачами.
 
 ---
 

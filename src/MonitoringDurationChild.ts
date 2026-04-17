@@ -155,29 +155,6 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
                 pill.onclick = () => { if (confirm(`Удалить #${tag}?`)) this.plugin.removeTagFromNote(this.file, tag); };
             });
 
-            const parentLink = cache?.frontmatter?.['parent'];
-            if (parentLink) {
-                const parentMatch = parentLink.match(/\[\[([^\]]+)\]\]/);
-                if (parentMatch) {
-                    const parentBasename = parentMatch[1];
-                    const parentType = parentBasename.startsWith('Project-') ? 'Проект' : 
-                                      parentBasename.startsWith('Task-') ? 'Задача' : 'Заметка';
-                    const parentContainer = rootContainer.createDiv({ cls: 'monitoring-parent-link' });
-                    parentContainer.createSpan({ text: `${parentType}: `, cls: 'monitoring-parent-label' });
-                    const link = parentContainer.createEl('a', { 
-                        href: `#`,
-                        text: `[[${parentBasename}]]`,
-                        cls: 'monitoring-parent-link-text'
-                    });
-                    link.onclick = async (e) => {
-                        e.preventDefault();
-                        const targetFile = this.plugin.app.vault.getAbstractFileByPath(`${parentBasename}.md`);
-                        if (targetFile instanceof TFile) {
-                            this.plugin.app.workspace.getLeaf(false).openFile(targetFile);
-                        }
-                    };
-                }
-            }
         };
 
         const renderExpanded = () => {

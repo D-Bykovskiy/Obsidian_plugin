@@ -217,60 +217,6 @@ ${newContent}
       throw new Error(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0432\u044B\u0437\u043E\u0432\u0435 LLM: ${error.message}`);
     }
   }
-  async generateWeeklyReport(incidentsSummary) {
-    var _a, _b, _c;
-    if (this.settings.useMockLLM) {
-      return `**[MOCK] \u0415\u0436\u0435\u043D\u0435\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u043E\u0442\u0447\u0435\u0442 \u043F\u043E \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u0430\u043C:**
-- \u0412\u0441\u0435\u0433\u043E \u0437\u0430\u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043E \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432: 3
-- \u041E\u0441\u043D\u043E\u0432\u043D\u044B\u0435 \u043F\u0440\u043E\u0431\u043B\u0435\u043C\u044B \u0441\u0432\u044F\u0437\u0430\u043D\u044B \u0441 \u0431\u0430\u0437\u043E\u0439 \u0434\u0430\u043D\u043D\u044B\u0445.
-- \u0412\u0441\u0435 \u043A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0441\u0431\u043E\u0438 \u0443\u0441\u0442\u0440\u0430\u043D\u0435\u043D\u044B \u0432 \u0442\u0435\u0447\u0435\u043D\u0438\u0435 \u0447\u0430\u0441\u0430.`;
-    }
-    if (!this.settings.llmApiKey || !this.settings.llmBaseUrl) {
-      throw new Error("LLM API Not Configured in Settings!");
-    }
-    let baseUrl = this.settings.llmBaseUrl.replace(/\/$/, "");
-    let endpoint = baseUrl;
-    if (!baseUrl.endsWith("/chat/completions")) {
-      if (baseUrl.match(/\/(v\d+|api\/v\d+)$/)) {
-        endpoint = `${baseUrl}/chat/completions`;
-      } else {
-        endpoint = `${baseUrl}/v1/chat/completions`;
-      }
-    }
-    const requestData = {
-      model: this.settings.llmModel || "llm-medium-moe-instruct",
-      messages: [
-        { role: "system", content: "\u0422\u044B \u043A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442 \u0434\u043B\u044F \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u0435\u0439. \u0422\u0432\u043E\u044F \u0437\u0430\u0434\u0430\u0447\u0430 \u2014 \u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u043F\u0438\u0441\u043E\u043A \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0438 \u0441\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0442\u044C \u043A\u0440\u0430\u0442\u043A\u0438\u0439, \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 \u0435\u0436\u0435\u043D\u0435\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u0430\u043D\u0430\u043B\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u043E\u0442\u0447\u0435\u0442. \u041E\u0442\u0432\u0435\u0447\u0430\u0439 \u043D\u0430 \u0440\u0443\u0441\u0441\u043A\u043E\u043C \u044F\u0437\u044B\u043A\u0435." },
-        { role: "user", content: `\u041D\u0430 \u043E\u0441\u043D\u043E\u0432\u0435 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0445 \u0441\u0430\u043C\u043C\u0430\u0440\u0438 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E, \u0441\u043E\u0441\u0442\u0430\u0432\u044C \u0430\u043D\u0430\u043B\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u043E\u0442\u0447\u0435\u0442 \u0434\u043B\u044F \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044F. \u0412\u044B\u0434\u0435\u043B\u0438 \u043E\u0441\u043D\u043E\u0432\u043D\u044B\u0435 \u0442\u0440\u0435\u043D\u0434\u044B, \u043A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u043F\u0440\u043E\u0431\u043B\u0435\u043C\u044B \u0438 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0438 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0438:
-
-${incidentsSummary}` }
-      ],
-      stream: false,
-      temperature: 0.5,
-      max_tokens: 2e3
-    };
-    const requestParams = {
-      url: endpoint,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.settings.llmApiKey}`
-      },
-      body: JSON.stringify(requestData)
-    };
-    try {
-      const response = await (0, import_obsidian.requestUrl)(requestParams);
-      if (response.status >= 200 && response.status < 300) {
-        const json = response.json;
-        return ((_c = (_b = (_a = json.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0435\u0442.";
-      } else {
-        throw new Error(`LLM Error ${response.status}: ${response.text}`);
-      }
-    } catch (error) {
-      console.error("LLM API Error:", error);
-      throw new Error(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: ${error.message}`);
-    }
-  }
   async checkSpelling(text) {
     var _a, _b, _c;
     if (this.settings.useMockLLM) {
@@ -646,7 +592,8 @@ cssclasses: [hide-properties]
 \`\`\`monitoring-duration
 \`\`\`
 
-## \u{1F4CB} \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435
+${parentFile ? `**\u041F\u0440\u043E\u0435\u043A\u0442:** [[${parentFile.basename}]]
+` : ""}## \u{1F4CB} \u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435
 \u0417\u0430\u043F\u0438\u0448\u0438\u0442\u0435 \u0437\u0434\u0435\u0441\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u0437\u0430\u0434\u0430\u0447\u0438...
 
 ## \u2705 \u0427\u0435\u043A-\u043B\u0438\u0441\u0442
@@ -1318,7 +1265,10 @@ var DataService = class {
     const tasks = [];
     const projects = [];
     const notes = [];
-    const files = this.app.vault.getMarkdownFiles();
+    const files = this.app.vault.getMarkdownFiles().filter((f) => {
+      const pathLower = f.path.toLowerCase();
+      return !pathLower.includes("/\u0430\u0440\u0445\u0438\u0432/") && !pathLower.endsWith("/\u0430\u0440\u0445\u0438\u0432");
+    });
     for (const file of files) {
       const cache = this.app.metadataCache.getFileCache(file);
       let rawTags = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.tags) || [];
@@ -2800,10 +2750,6 @@ var MainPageView = class extends import_obsidian11.ItemView {
       text: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0434\u0430\u043D\u043D\u044B\u0435"
     }).onclick = () => this.refreshContent();
     btnGroup.createEl("button", {
-      cls: "monitoring-report-btn",
-      text: "\u0421\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043E\u0442\u0447\u0435\u0442"
-    }).onclick = () => this.generateWeeklyReport();
-    btnGroup.createEl("button", {
       cls: "monitoring-glass-btn monitoring-add-task",
       text: "+ \u0417\u0430\u0434\u0430\u0447\u0443"
     }).onclick = () => this.showNamingModal("\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0437\u0430\u0434\u0430\u0447\u0443", async (name) => {
@@ -2914,39 +2860,6 @@ var MainPageView = class extends import_obsidian11.ItemView {
   }
   showNamingModal(title, onSubmit) {
     new NamingModal(this.app, title, onSubmit).open();
-  }
-  async generateWeeklyReport() {
-    new import_obsidian11.Notice("\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043E\u0442\u0447\u0435\u0442\u0430 \u0437\u0430 \u043D\u0435\u0434\u0435\u043B\u044E...");
-    try {
-      const data = await this.dataService.fetchVaultData();
-      if (data.incidents.length === 0) {
-        new import_obsidian11.Notice("\u041D\u0435\u0442 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F \u0430\u043D\u0430\u043B\u0438\u0437\u0430.");
-        return;
-      }
-      let combinedText = "";
-      for (const inc of data.incidents.slice(0, 10)) {
-        const file2 = this.app.vault.getAbstractFileByPath(inc.path);
-        const content = await this.app.vault.read(file2);
-        const summaryMatch = content.match(/## Текущее саммари инцидента\n([\s\S]*?)\n---/);
-        if (summaryMatch) {
-          combinedText += "--- Incident: " + inc.name + " ---\n" + summaryMatch[1] + "\n\n";
-        }
-      }
-      if (!combinedText) {
-        new import_obsidian11.Notice("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u0432\u043B\u0435\u0447\u044C \u0434\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F \u043E\u0442\u0447\u0435\u0442\u0430.");
-        return;
-      }
-      const report = await this.plugin.llmService.generateWeeklyReport(combinedText);
-      const dateStr = new Date().toISOString().split("T")[0];
-      const fileName = "Weekly-Report-" + dateStr + ".md";
-      const fileContent = "# \u0415\u0436\u0435\u043D\u0435\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u043E\u0442\u0447\u0435\u0442 \u043E\u0442 " + dateStr + "\n\n" + report + "\n\n## \u041F\u0440\u043E\u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0435 \u0438\u043D\u0446\u0438\u0434\u0435\u043D\u0442\u044B\n" + data.incidents.slice(0, 10).map((i) => "- [[" + i.path + "|" + i.name + "]]").join("\n");
-      const file = await this.app.vault.create(fileName, fileContent);
-      await this.app.workspace.getLeaf(false).openFile(file);
-      new import_obsidian11.Notice("\u041E\u0442\u0447\u0435\u0442 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u043D!");
-    } catch (error) {
-      console.error(error);
-      new import_obsidian11.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u0447\u0435\u0442\u0430: " + error.message);
-    }
   }
   async onClose() {
   }
@@ -3373,7 +3286,7 @@ var MonitoringDurationChild = class extends import_obsidian17.MarkdownRenderChil
     let currentDeadline = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a["deadline"]) || "";
     const isSimpleNote = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b["daily"]) === true;
     const renderCollapsed = () => {
-      var _a2, _b2, _c, _d, _e, _f;
+      var _a2, _b2, _c, _d, _e;
       rootContainer.empty();
       const panelContainer = rootContainer.createDiv({ cls: "monitoring-controls-panel" });
       if (!isSimpleNote) {
@@ -3505,28 +3418,6 @@ var MonitoringDurationChild = class extends import_obsidian17.MarkdownRenderChil
             this.plugin.removeTagFromNote(this.file, tag);
         };
       });
-      const parentLink = (_f = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _f["parent"];
-      if (parentLink) {
-        const parentMatch = parentLink.match(/\[\[([^\]]+)\]\]/);
-        if (parentMatch) {
-          const parentBasename = parentMatch[1];
-          const parentType = parentBasename.startsWith("Project-") ? "\u041F\u0440\u043E\u0435\u043A\u0442" : parentBasename.startsWith("Task-") ? "\u0417\u0430\u0434\u0430\u0447\u0430" : "\u0417\u0430\u043C\u0435\u0442\u043A\u0430";
-          const parentContainer = rootContainer.createDiv({ cls: "monitoring-parent-link" });
-          parentContainer.createSpan({ text: `${parentType}: `, cls: "monitoring-parent-label" });
-          const link = parentContainer.createEl("a", {
-            href: `#`,
-            text: `[[${parentBasename}]]`,
-            cls: "monitoring-parent-link-text"
-          });
-          link.onclick = async (e) => {
-            e.preventDefault();
-            const targetFile = this.plugin.app.vault.getAbstractFileByPath(`${parentBasename}.md`);
-            if (targetFile instanceof import_obsidian17.TFile) {
-              this.plugin.app.workspace.getLeaf(false).openFile(targetFile);
-            }
-          };
-        }
-      }
     };
     const renderExpanded = () => {
       rootContainer.empty();
@@ -3941,15 +3832,22 @@ ${newRow}`;
   }
   async moveFileToFolder(file, folderName) {
     try {
-      if (!this.app.vault.getAbstractFileByPath(folderName))
-        await this.app.vault.createFolder(folderName);
-      const newPath = `${folderName}/${file.name}`;
+      const filePath = file.path;
+      const pathParts = filePath.split("/");
+      pathParts.pop();
+      const relativePath = pathParts.join("/");
+      const targetFolder = relativePath ? `${folderName}/${relativePath}` : folderName;
+      const folderExists = this.app.vault.getAbstractFileByPath(targetFolder);
+      if (!folderExists) {
+        await this.app.vault.createFolder(targetFolder);
+      }
+      const newPath = `${targetFolder}/${file.name}`;
       if (this.app.vault.getAbstractFileByPath(newPath)) {
-        new import_obsidian18.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${folderName}"`);
+        new import_obsidian18.Notice(`\u0424\u0430\u0439\u043B \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 "${targetFolder}"`);
         return;
       }
       await this.app.fileManager.renameFile(file, newPath);
-      new import_obsidian18.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${folderName}"`);
+      new import_obsidian18.Notice(`\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0430 \u0432 "${targetFolder}"`);
     } catch (e) {
       console.error(e);
       new import_obsidian18.Notice(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0438: ${e.message}`);

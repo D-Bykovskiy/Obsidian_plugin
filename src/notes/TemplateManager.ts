@@ -155,7 +155,7 @@ cssclasses: [hide-properties]
 \`\`\`monitoring-duration
 \`\`\`
 
-## 📋 Описание
+${parentFile ? `**Проект:** [[${parentFile.basename}]]\n` : ''}## 📋 Описание
 Запишите здесь детали задачи...
 
 ## ✅ Чек-лист

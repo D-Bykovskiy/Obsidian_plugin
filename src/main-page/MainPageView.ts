@@ -138,11 +138,6 @@ export class MainPageView extends ItemView {
         }).onclick = () => this.refreshContent();
 
         btnGroup.createEl('button', {
-            cls: 'monitoring-report-btn',
-            text: 'Сформировать отчет'
-        }).onclick = () => this.generateWeeklyReport();
-
-        btnGroup.createEl('button', {
             cls: 'monitoring-glass-btn monitoring-add-task',
             text: '+ Задачу'
         }).onclick = () => this.showNamingModal('Создать новую задачу', async (name) => {
@@ -268,46 +263,6 @@ export class MainPageView extends ItemView {
 
     private showNamingModal(title: string, onSubmit: (name: string) => void): void {
         new NamingModal(this.app, title, onSubmit).open();
-    }
-
-    async generateWeeklyReport() {
-        new Notice('Генерация отчета за неделю...');
-        try {
-            const data = await this.dataService.fetchVaultData();
-            if (data.incidents.length === 0) {
-                new Notice('Нет инцидентов для анализа.');
-                return;
-            }
-
-            let combinedText = "";
-            for (const inc of data.incidents.slice(0, 10)) { 
-                const file = this.app.vault.getAbstractFileByPath(inc.path) as TFile;
-                const content = await this.app.vault.read(file);
-                const summaryMatch = content.match(/## Текущее саммари инцидента\n([\s\S]*?)\n---/);
-                if (summaryMatch) {
-                    combinedText += '--- Incident: ' + inc.name + ' ---\n' + summaryMatch[1] + '\n\n';
-                }
-            }
-
-            if (!combinedText) {
-                new Notice('Не удалось извлечь данные для отчета.');
-                return;
-            }
-
-            const report = await this.plugin.llmService.generateWeeklyReport(combinedText);
-            
-            const dateStr = new Date().toISOString().split('T')[0];
-            const fileName = 'Weekly-Report-' + dateStr + '.md';
-            const fileContent = '# Еженедельный отчет от ' + dateStr + '\n\n' + report + '\n\n## Проанализированные инциденты\n' + 
-                data.incidents.slice(0, 10).map(i => '- [[' + i.path + '|' + i.name + ']]').join('\n');
-            
-            const file = await this.app.vault.create(fileName, fileContent);
-            await this.app.workspace.getLeaf(false).openFile(file);
-            new Notice('Отчет успешно создан!');
-        } catch (error) {
-            console.error(error);
-            new Notice('Ошибка при генерации отчета: ' + error.message);
-        }
     }
 
     async onClose() {

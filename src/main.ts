@@ -307,11 +307,22 @@ export default class MonitoringPlugin extends Plugin {
 
     async moveFileToFolder(file: TFile, folderName: string) {
         try {
-            if (!this.app.vault.getAbstractFileByPath(folderName)) await this.app.vault.createFolder(folderName);
-            const newPath = `${folderName}/${file.name}`;
-            if (this.app.vault.getAbstractFileByPath(newPath)) { new Notice(`Файл уже существует в "${folderName}"`); return; }
+            const filePath = file.path;
+            const pathParts = filePath.split('/');
+            pathParts.pop();
+            const relativePath = pathParts.join('/');
+            
+            const targetFolder = relativePath ? `${folderName}/${relativePath}` : folderName;
+            
+            const folderExists = this.app.vault.getAbstractFileByPath(targetFolder);
+            if (!folderExists) {
+                await this.app.vault.createFolder(targetFolder);
+            }
+            
+            const newPath = `${targetFolder}/${file.name}`;
+            if (this.app.vault.getAbstractFileByPath(newPath)) { new Notice(`Файл уже существует в "${targetFolder}"`); return; }
             await this.app.fileManager.renameFile(file, newPath);
-            new Notice(`Заметка перемещена в "${folderName}"`);
+            new Notice(`Заметка перемещена в "${targetFolder}"`);
         } catch (e) {
             console.error(e);
             new Notice(`Ошибка при перемещении: ${e.message}`);

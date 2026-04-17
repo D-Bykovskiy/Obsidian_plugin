@@ -18,7 +18,10 @@ export class DataService {
         const projects: ProjectData[] = [];
         const notes: SimpleNoteData[] = [];
         
-        const files = this.app.vault.getMarkdownFiles();
+        const files = this.app.vault.getMarkdownFiles().filter(f => {
+            const pathLower = f.path.toLowerCase();
+            return !pathLower.includes('/архив/') && !pathLower.endsWith('/архив');
+        });
         
         for (const file of files) {
             const cache = this.app.metadataCache.getFileCache(file);
