@@ -311,4 +311,85 @@ cssclasses: [hide-properties]
         if (s.includes('в работе') || s.includes('процессе') || s === 'active' || s === 'in progress') return '🔄';
         return '⬜';
     }
+
+    async createMailNote(
+        topic: string, 
+        summary: string, 
+        emails: {sender: string, subject: string, body: string, date: string}[],
+        parentFile: TFile
+    ): Promise<TFile> {
+        const vault = this.app.vault;
+        const safeTopic = topic.replace(/[\\/:"*?<>|]/g, '_').slice(0, 50);
+        const safeFileName = `Письма-${safeTopic}`;
+        
+        const parentFolder = parentFile.parent?.path || '';
+        const mailFolderPath = parentFolder ? `${parentFolder}/mail` : 'mail';
+        
+        const folderAbstract = vault.getAbstractFileByPath(mailFolderPath);
+        if (!folderAbstract) {
+            try {
+                await vault.createFolder(mailFolderPath);
+            } catch(e) {
+                console.error("Failed to create mail folder", e);
+            }
+        }
+        
+        const filename = `${mailFolderPath}/${safeFileName}.md`;
+        
+        const emailsList = emails.map(e => 
+            `**${e.date}** — ${e.sender}\nТема: ${e.subject}\n${e.body.slice(0, 300)}${e.body.length > 300 ? '...' : ''}`
+        ).join('\n\n---\n\n');
+
+        const fileContent = `---
+type: mail_note
+parent: "[[${parentFile.basename}]]"
+topic: "${topic}"
+created: ${new Date().toISOString().split('T')[0]}
+cssclasses: [hide-properties]
+---
+
+# Письма: ${topic}
+
+## 📝 Саммари
+${summary}
+
+---
+
+## 📧 Письма (${emails.length})
+
+${emailsList}
+`;
+
+        let file = vault.getAbstractFileByPath(filename) as TFile;
+        if (file) {
+            await vault.modify(file, fileContent);
+        } else {
+            file = await vault.create(filename, fileContent);
+        }
+
+        await this.addMailLinkToParent(parentFile, file, topic);
+        
+        return file;
+    }
+
+    private async addMailLinkToParent(parentFile: TFile, mailFile: TFile, topic: string): Promise<void> {
+        let content = await this.app.vault.read(parentFile);
+        
+        const linkText = `- [[${mailFile.basename}]] — ${topic}`;
+        const header = '## 📧 Заметки писем';
+        
+        if (content.includes(header)) {
+            const linkRegex = new RegExp(`(\n${header}\n)([\s\S]*?)(?=\n## |\n---|\n#|$)`);
+            const match = content.match(linkRegex);
+            if (match) {
+                if (!match[2].includes(mailFile.basename)) {
+                    content = content.replace(linkRegex, `$1${linkText}\n$2`);
+                }
+            }
+        } else {
+            content += `\n\n${header}\n${linkText}\n`;
+        }
+        
+        await this.app.vault.modify(parentFile, content);
+    }
 }

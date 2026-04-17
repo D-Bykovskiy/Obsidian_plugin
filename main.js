@@ -373,6 +373,75 @@ ${text}` }
       throw error;
     }
   }
+  async summarizeEmails(emails) {
+    var _a, _b, _c;
+    if (this.settings.useMockLLM) {
+      return `**[MOCK] \u0421\u0430\u043C\u043C\u0430\u0440\u0438 \u043F\u0438\u0441\u0435\u043C:**
+
+\u041F\u0438\u0441\u044C\u043C\u043E 1 \u043E\u0442 \u0418\u0432\u0430\u043D \u0418\u0432\u0430\u043D\u043E\u0432: \u041E\u0431\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435 \u043F\u0440\u043E\u0431\u043B\u0435\u043C\u044B \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C.
+
+\u041F\u0438\u0441\u044C\u043C\u043E 2 \u043E\u0442 \u041F\u0435\u0442\u0440 \u041F\u0435\u0442\u0440\u043E\u0432: \u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u043E \u0440\u0435\u0448\u0435\u043D\u0438\u0435, \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\u0430\u043D\u0438\u0435.
+
+\u041F\u0438\u0441\u044C\u043C\u043E 3 \u043E\u0442 \u041C\u0430\u0440\u0438\u044F \u0421\u0438\u0434\u043E\u0440\u043E\u0432\u0430: \u041F\u0440\u0438\u043D\u044F\u0442\u043E \u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0440\u0430\u0431\u043E\u0442\u0443.
+
+**\u0418\u0442\u043E\u0433:** \u0412\u0441\u0435 \u0441\u0442\u043E\u0440\u043E\u043D\u044B \u043F\u0440\u0438\u0448\u043B\u0438 \u043A \u0441\u043E\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u044E.`;
+    }
+    if (!this.settings.llmApiKey || !this.settings.llmBaseUrl) {
+      throw new Error("LLM API Not Configured in Settings!");
+    }
+    if (emails.length === 0) {
+      return "\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u0434\u043B\u044F \u0441\u0443\u043C\u043C\u0430\u0440\u0438\u0437\u0430\u0446\u0438\u0438.";
+    }
+    let baseUrl = this.settings.llmBaseUrl.replace(/\/$/, "");
+    let endpoint = baseUrl;
+    if (!baseUrl.endsWith("/chat/completions")) {
+      if (baseUrl.match(/\/(v\d+|api\/v\d+)$/)) {
+        endpoint = `${baseUrl}/chat/completions`;
+      } else {
+        endpoint = `${baseUrl}/v1/chat/completions`;
+      }
+    }
+    const emailsText = emails.map(
+      (e, i) => `--- \u041F\u0438\u0441\u044C\u043C\u043E ${i + 1} ---
+\u041E\u0442: ${e.sender}
+\u0414\u0430\u0442\u0430: ${e.date}
+\u0422\u0435\u043C\u0430: ${e.subject}
+\u0421\u043E\u0434\u0435\u0440\u0436\u0430\u043D\u0438\u0435: ${e.body}`
+    ).join("\n\n");
+    const requestData = {
+      model: this.settings.llmModel || "llm-medium-moe-instruct",
+      messages: [
+        { role: "system", content: "\u0422\u044B - \u043A\u043E\u0440\u043F\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0439 \u0418\u0418-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442. \u0422\u0432\u043E\u044F \u0437\u0430\u0434\u0430\u0447\u0430 - \u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u043F\u0438\u0441\u043A\u0443 \u043F\u043E email \u0438 \u0441\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0442\u044C \u043A\u0440\u0430\u0442\u043A\u043E\u0435 \u0441\u0430\u043C\u043C\u0430\u0440\u0438 \u0438\u0437 3 \u0430\u0431\u0437\u0430\u0446\u0435\u0432. \u0421\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0430: 1) \u041A\u0442\u043E \u0443\u0447\u0430\u0441\u0442\u0432\u043E\u0432\u0430\u043B \u0438 \u043E \u0447\u0451\u043C \u0448\u043B\u0430 \u0440\u0435\u0447\u044C, 2) \u041E\u0441\u043D\u043E\u0432\u043D\u044B\u0435 \u0442\u043E\u0447\u043A\u0438 \u0437\u0440\u0435\u043D\u0438\u044F/\u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0430, 3) \u041A \u0447\u0435\u043C\u0443 \u043F\u0440\u0438\u0448\u043B\u0438/\u043A\u0430\u043A\u043E\u0435 \u043F\u0440\u0438\u043D\u044F\u0442\u043E \u0440\u0435\u0448\u0435\u043D\u0438\u0435. \u041F\u0438\u0448\u0438 \u043D\u0430 \u0440\u0443\u0441\u0441\u043A\u043E\u043C \u044F\u0437\u044B\u043A\u0435, \u0431\u0443\u0434\u044C \u043A\u0440\u0430\u0442\u043E\u043A \u0438 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0442\u0438\u0432\u0435\u043D." },
+        { role: "user", content: `\u041F\u0440\u043E\u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u0443\u0439 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0435 \u043F\u0438\u0441\u044C\u043C\u0430 \u0438 \u0441\u043E\u0441\u0442\u0430\u0432\u044C \u0441\u0430\u043C\u043C\u0430\u0440\u0438 \u0438\u0437 3 \u0430\u0431\u0437\u0430\u0446\u0435\u0432:
+
+${emailsText}` }
+      ],
+      stream: false,
+      temperature: 0.5,
+      max_tokens: 1500
+    };
+    const requestParams = {
+      url: endpoint,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.settings.llmApiKey}`
+      },
+      body: JSON.stringify(requestData)
+    };
+    try {
+      const response = await (0, import_obsidian.requestUrl)(requestParams);
+      if (response.status >= 200 && response.status < 300) {
+        const json = response.json;
+        return ((_c = (_b = (_a = json.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content) || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0441\u0430\u043C\u043C\u0430\u0440\u0438.";
+      } else {
+        throw new Error(`LLM Error ${response.status}: ${response.text}`);
+      }
+    } catch (error) {
+      console.error("LLM API Error:", error);
+      throw new Error(`\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0441\u0443\u043C\u043C\u0430\u0440\u0438\u0437\u0430\u0446\u0438\u0438 \u043F\u0438\u0441\u0435\u043C: ${error.message}`);
+    }
+  }
 };
 
 // src/outlook/OutlookService.ts
@@ -717,6 +786,82 @@ ${listItem}
     if (s.includes("\u0432 \u0440\u0430\u0431\u043E\u0442\u0435") || s.includes("\u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435") || s === "active" || s === "in progress")
       return "\u{1F504}";
     return "\u2B1C";
+  }
+  async createMailNote(topic, summary, emails, parentFile) {
+    var _a;
+    const vault = this.app.vault;
+    const safeTopic = topic.replace(/[\\/:"*?<>|]/g, "_").slice(0, 50);
+    const safeFileName = `\u041F\u0438\u0441\u044C\u043C\u0430-${safeTopic}`;
+    const parentFolder = ((_a = parentFile.parent) == null ? void 0 : _a.path) || "";
+    const mailFolderPath = parentFolder ? `${parentFolder}/mail` : "mail";
+    const folderAbstract = vault.getAbstractFileByPath(mailFolderPath);
+    if (!folderAbstract) {
+      try {
+        await vault.createFolder(mailFolderPath);
+      } catch (e) {
+        console.error("Failed to create mail folder", e);
+      }
+    }
+    const filename = `${mailFolderPath}/${safeFileName}.md`;
+    const emailsList = emails.map(
+      (e) => `**${e.date}** \u2014 ${e.sender}
+\u0422\u0435\u043C\u0430: ${e.subject}
+${e.body.slice(0, 300)}${e.body.length > 300 ? "..." : ""}`
+    ).join("\n\n---\n\n");
+    const fileContent = `---
+type: mail_note
+parent: "[[${parentFile.basename}]]"
+topic: "${topic}"
+created: ${new Date().toISOString().split("T")[0]}
+cssclasses: [hide-properties]
+---
+
+# \u041F\u0438\u0441\u044C\u043C\u0430: ${topic}
+
+## \u{1F4DD} \u0421\u0430\u043C\u043C\u0430\u0440\u0438
+${summary}
+
+---
+
+## \u{1F4E7} \u041F\u0438\u0441\u044C\u043C\u0430 (${emails.length})
+
+${emailsList}
+`;
+    let file = vault.getAbstractFileByPath(filename);
+    if (file) {
+      await vault.modify(file, fileContent);
+    } else {
+      file = await vault.create(filename, fileContent);
+    }
+    await this.addMailLinkToParent(parentFile, file, topic);
+    return file;
+  }
+  async addMailLinkToParent(parentFile, mailFile, topic) {
+    let content = await this.app.vault.read(parentFile);
+    const linkText = `- [[${mailFile.basename}]] \u2014 ${topic}`;
+    const header = "## \u{1F4E7} \u0417\u0430\u043C\u0435\u0442\u043A\u0438 \u043F\u0438\u0441\u0435\u043C";
+    if (content.includes(header)) {
+      const linkRegex = new RegExp(`(
+${header}
+)([sS]*?)(?=
+## |
+---|
+#|$)`);
+      const match = content.match(linkRegex);
+      if (match) {
+        if (!match[2].includes(mailFile.basename)) {
+          content = content.replace(linkRegex, `$1${linkText}
+$2`);
+        }
+      }
+    } else {
+      content += `
+
+${header}
+${linkText}
+`;
+    }
+    await this.app.vault.modify(parentFile, content);
   }
 };
 
@@ -3081,12 +3226,14 @@ var ResponsibleButtonModal = class extends import_obsidian15.Modal {
 // src/modals/EmailTopicModal.ts
 var import_obsidian16 = require("obsidian");
 var EmailTopicModal = class extends import_obsidian16.Modal {
-  constructor(app, file, onSave) {
+  constructor(app, file, onSave, plugin) {
     super(app);
     this.topics = [];
     this.newTopic = "";
+    this.isChecking = false;
     this.file = file;
     this.onSave = onSave;
+    this.plugin = plugin;
   }
   async onOpen() {
     var _a;
@@ -3125,6 +3272,61 @@ var EmailTopicModal = class extends import_obsidian16.Modal {
       this.close();
     });
     new import_obsidian16.ButtonComponent(btnContainer).setButtonText("\u041E\u0442\u043C\u0435\u043D\u0430").onClick(() => this.close());
+    const checkSection = contentEl.createDiv();
+    checkSection.style.marginTop = "24px";
+    checkSection.style.paddingTop = "16px";
+    checkSection.style.borderTop = "1px solid var(--border-color)";
+    const checkBtn = checkSection.createEl("button", {
+      cls: "mod-cta",
+      text: this.isChecking ? "\u23F3 \u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430..." : "\u{1F4EC} \u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043F\u043E\u0447\u0442\u0443"
+    });
+    checkBtn.style.width = "100%";
+    checkBtn.onclick = async () => {
+      if (this.isChecking)
+        return;
+      if (this.topics.length === 0) {
+        new import_obsidian16.Notice("\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0434\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0442\u0435\u043C\u044B \u0434\u043B\u044F \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u044F!");
+        return;
+      }
+      this.isChecking = true;
+      checkBtn.textContent = "\u23F3 \u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430...";
+      try {
+        await this.checkAndProcessEmails();
+        new import_obsidian16.Notice("\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043F\u0438\u0441\u0435\u043C \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430!");
+      } catch (error) {
+        console.error("Error checking emails:", error);
+        new import_obsidian16.Notice("\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0435 \u043F\u0438\u0441\u0435\u043C: " + error.message);
+      } finally {
+        this.isChecking = false;
+        checkBtn.textContent = "\u{1F4EC} \u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043F\u043E\u0447\u0442\u0443";
+      }
+    };
+  }
+  async checkAndProcessEmails() {
+    const allEmails = await this.plugin.outlookService.fetchEmails();
+    const trackedTopicsLower = this.topics.map((t) => t.toLowerCase());
+    const matchedEmails = allEmails.filter((email) => {
+      const topicLower = (email.conversationTopic || "").toLowerCase();
+      return trackedTopicsLower.some((topic2) => topicLower.includes(topic2));
+    });
+    if (matchedEmails.length === 0) {
+      new import_obsidian16.Notice("\u041D\u0435\u0442 \u043F\u0438\u0441\u0435\u043C \u043F\u043E \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u043C \u0442\u0435\u043C\u0430\u043C.");
+      return;
+    }
+    const emailData = matchedEmails.map((e) => ({
+      sender: e.sender,
+      subject: e.subject,
+      body: e.bodyPreview,
+      date: new Date(e.receivedDateTime).toLocaleDateString("ru-RU")
+    }));
+    const summary = await this.plugin.llmService.summarizeEmails(emailData);
+    const topic = this.topics[0];
+    await this.plugin.templateManager.createMailNote(
+      topic,
+      summary,
+      emailData,
+      this.file
+    );
   }
   renderTopicsList(container) {
     container.empty();
@@ -3205,7 +3407,7 @@ var MonitoringDurationChild = class extends import_obsidian17.MarkdownRenderChil
           });
           this.rootContainer.empty();
           await this.renderUI();
-        }).open();
+        }, this.plugin).open();
         const pContainer = row1.createDiv({ cls: "monitoring-third-row" });
         let isPExp = false;
         const renderPUI = () => {

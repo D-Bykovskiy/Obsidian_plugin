@@ -71,7 +71,7 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
                     });
                     this.rootContainer.empty();
                     await this.renderUI();
-                }).open();
+                }, this.plugin).open();
 
                 const pContainer = row1.createDiv({ cls: 'monitoring-third-row' });
                 let isPExp = false;

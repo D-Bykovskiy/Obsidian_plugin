@@ -1,15 +1,22 @@
-import { Modal, TextComponent, ButtonComponent, TFile } from 'obsidian';
+import { Modal, TextComponent, ButtonComponent, TFile, Notice } from 'obsidian';
+import { OutlookService, EmailData } from '../outlook/OutlookService';
+import { LLMService } from '../llm/LLMService';
+import { TemplateManager } from '../notes/TemplateManager';
+import MonitoringPlugin from '../main';
 
 export class EmailTopicModal extends Modal {
     private file: TFile;
     private onSave: (topics: string[]) => void;
     private topics: string[] = [];
     private newTopic: string = '';
+    private plugin: MonitoringPlugin;
+    private isChecking: boolean = false;
 
-    constructor(app: any, file: TFile, onSave: (topics: string[]) => void) {
+    constructor(app: any, file: TFile, onSave: (topics: string[]) => void, plugin: MonitoringPlugin) {
         super(app);
         this.file = file;
         this.onSave = onSave;
+        this.plugin = plugin;
     }
 
     async onOpen() {
@@ -65,6 +72,72 @@ export class EmailTopicModal extends Modal {
         new ButtonComponent(btnContainer)
             .setButtonText('Отмена')
             .onClick(() => this.close());
+
+        const checkSection = contentEl.createDiv();
+        checkSection.style.marginTop = '24px';
+        checkSection.style.paddingTop = '16px';
+        checkSection.style.borderTop = '1px solid var(--border-color)';
+        
+        const checkBtn = checkSection.createEl('button', {
+            cls: 'mod-cta',
+            text: this.isChecking ? '⏳ Проверка...' : '📬 Проверить почту'
+        });
+        checkBtn.style.width = '100%';
+        checkBtn.onclick = async () => {
+            if (this.isChecking) return;
+            if (this.topics.length === 0) {
+                new Notice('Сначала добавьте темы для отслеживания!');
+                return;
+            }
+            
+            this.isChecking = true;
+            checkBtn.textContent = '⏳ Проверка...';
+            
+            try {
+                await this.checkAndProcessEmails();
+                new Notice('Проверка писем завершена!');
+            } catch (error) {
+                console.error('Error checking emails:', error);
+                new Notice('Ошибка при проверке писем: ' + error.message);
+            } finally {
+                this.isChecking = false;
+                checkBtn.textContent = '📬 Проверить почту';
+            }
+        };
+    }
+
+    private async checkAndProcessEmails(): Promise<void> {
+        const allEmails = await this.plugin.outlookService.fetchEmails();
+        
+        const trackedTopicsLower = this.topics.map(t => t.toLowerCase());
+        
+        const matchedEmails = allEmails.filter(email => {
+            const topicLower = (email.conversationTopic || '').toLowerCase();
+            return trackedTopicsLower.some(topic => topicLower.includes(topic));
+        });
+
+        if (matchedEmails.length === 0) {
+            new Notice('Нет писем по отслеживаемым темам.');
+            return;
+        }
+
+        const emailData = matchedEmails.map(e => ({
+            sender: e.sender,
+            subject: e.subject,
+            body: e.bodyPreview,
+            date: new Date(e.receivedDateTime).toLocaleDateString('ru-RU')
+        }));
+
+        const summary = await this.plugin.llmService.summarizeEmails(emailData);
+        
+        const topic = this.topics[0];
+        
+        await this.plugin.templateManager.createMailNote(
+            topic,
+            summary,
+            emailData,
+            this.file
+        );
     }
 
     private renderTopicsList(container: HTMLElement): void {
