@@ -54,6 +54,16 @@ export class ResourceModal extends Modal {
         dInput.onChange(val => this.description = val);
         dInput.inputEl.style.width = "100%";
 
+        dInput.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.link) {
+                    this.onSubmit(this.link, this.description);
+                    this.close();
+                }
+            }
+        });
+
         new ButtonComponent(contentEl.createDiv({ cls: 'modal-button-container' }))
             .setButtonText("Добавить")
             .setCta()

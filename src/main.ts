@@ -7,6 +7,7 @@ import { TeamService } from './team/TeamService';
 import { MonitoringSettingTab, DEFAULT_SETTINGS, MonitoringPluginSettings } from './settings/SettingsTab';
 import { ChatView, CHAT_VIEW_TYPE } from './chat/ChatView';
 import { MainPageView, MAIN_PAGE_VIEW_TYPE } from './main-page/MainPageView';
+import { DataService } from './main-page/DataService';
 import { TagModal } from './modals/TagModal';
 import { ResourceModal } from './modals/ResourceModal';
 import { NewTaskModal } from './modals/NewTaskModal';
@@ -19,6 +20,7 @@ export default class MonitoringPlugin extends Plugin {
     outlookService: OutlookService;
     templateManager: TemplateManager;
     dailyService: DailyService;
+    dataService: DataService;
 
     async onload() {
         await this.loadSettings();
@@ -28,11 +30,12 @@ export default class MonitoringPlugin extends Plugin {
         this.outlookService = new OutlookService(this.settings, this.app);
         this.templateManager = new TemplateManager(this.app, this.settings);
         this.dailyService = new DailyService(this.app, this.settings);
+        this.dataService = new DataService(this.app, this.settings.incidentsFolder, this.settings.simpleNotesFolder);
 
         // Register Chat View
         this.registerView(
             CHAT_VIEW_TYPE,
-            (leaf) => new ChatView(leaf, this.llmService)
+            (leaf) => new ChatView(leaf, this.llmService, this.dataService, this.app)
         );
 
         this.registerView(

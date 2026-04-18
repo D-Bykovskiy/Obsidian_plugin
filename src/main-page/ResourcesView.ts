@@ -366,6 +366,17 @@ class AddGroupModal extends Modal {
         nameInput.inputEl.style.width = '100%';
         nameInput.inputEl.style.marginBottom = '20px';
 
+        nameInput.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const name = nameInput.getValue().trim();
+                if (name) {
+                    this.onSubmit(name, this.selectedIcon);
+                    this.close();
+                }
+            }
+        });
+
         new ButtonComponent(contentEl)
             .setButtonText('Добавить')
             .setCta()
@@ -416,16 +427,32 @@ class AddResourceModal extends Modal {
         urlInput.inputEl.style.width = '100%';
         urlInput.inputEl.style.marginBottom = '20px';
 
+        const submitCallback = () => {
+            const name = nameInput.getValue().trim();
+            const url = urlInput.getValue().trim();
+            if (name && url) {
+                this.onSubmit(name, url, this.selectedIcon);
+                this.close();
+            }
+        };
+
+        nameInput.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitCallback();
+            }
+        });
+
+        urlInput.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitCallback();
+            }
+        });
+
         new ButtonComponent(contentEl)
             .setButtonText('Добавить')
             .setCta()
-            .onClick(() => {
-                const name = nameInput.getValue().trim();
-                const url = urlInput.getValue().trim();
-                if (name && url) {
-                    this.onSubmit(name, url, this.selectedIcon);
-                    this.close();
-                }
-            });
+            .onClick(submitCallback);
     }
 }

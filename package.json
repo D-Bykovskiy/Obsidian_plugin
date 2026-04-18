@@ -1,6 +1,6 @@
 {
     "name": "monitoring-plugin",
-    "version": "1.5.4",
+    "version": "1.5.5",
     "description": "Integrate Outlook mail and corporate LLM",
     "main": "main.js",
     "scripts": {

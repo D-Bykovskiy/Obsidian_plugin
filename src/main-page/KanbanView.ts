@@ -296,6 +296,15 @@ class ResponsibleModal extends Modal {
         input.setPlaceholder('Новое имя ответственного');
         input.inputEl.style.width = '100%';
 
+        input.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = input.inputEl.value.trim() || select.value;
+                this.onSave(value);
+                this.close();
+            }
+        });
+
         const addTeamBtn = new ButtonComponent(contentEl)
             .setButtonText('+ Добавить в команду')
             .setClass('mod-small')

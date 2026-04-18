@@ -264,6 +264,22 @@ class FilterModal extends Modal {
         nameInput.inputEl.style.marginBottom = "10px";
         nameInput.onChange(v => this.currentName = v);
 
+        nameInput.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!this.currentName || this.currentTags.length === 0) {
+                    new Notice("Укажите название и хотя бы один тег");
+                    return;
+                }
+                this.editingFilters.unshift({ name: this.currentName, tags: [...this.currentTags] });
+                this.currentName = "";
+                this.currentTags = [];
+                nameInput.setValue("");
+                this.renderTagsPreview(tagsPreview);
+                this.renderList(listContainer);
+            }
+        });
+
         const tagsPreview = form.createDiv({ cls: 'active-filters-container', attr: { style: 'min-height: 20px; margin-bottom: 10px;' } });
         this.renderTagsPreview(tagsPreview);
 
@@ -271,6 +287,21 @@ class FilterModal extends Modal {
         const tagInput = new TextComponent(tagControls);
         tagInput.setPlaceholder("Добавить тег...");
         tagInput.onChange(v => this.newTag = v);
+        
+        tagInput.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.newTag) {
+                    const t = this.newTag.trim().replace(/^#/, '');
+                    if (!this.currentTags.includes(t)) {
+                        this.currentTags.push(t);
+                        this.renderTagsPreview(tagsPreview);
+                    }
+                    this.newTag = "";
+                    tagInput.setValue("");
+                }
+            }
+        });
         
         new ButtonComponent(tagControls).setButtonText("Добавить").onClick(() => {
             if (this.newTag) {

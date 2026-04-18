@@ -45,6 +45,18 @@ export class EmailTopicModal extends Modal {
         input.inputEl.style.width = '70%';
         input.onChange(v => this.newTopic = v);
 
+        input.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.newTopic.trim() && !this.topics.includes(this.newTopic.trim())) {
+                    this.topics.push(this.newTopic.trim());
+                    this.newTopic = '';
+                    input.setValue('');
+                    this.renderTopicsList(contentEl.querySelector('.email-topics-list') as HTMLElement);
+                }
+            }
+        });
+
         new ButtonComponent(addSection)
             .setButtonText('+')
             .onClick(() => {

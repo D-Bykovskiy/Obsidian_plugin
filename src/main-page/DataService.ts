@@ -153,4 +153,59 @@ export class DataService {
         }
         return [];
     }
+
+    async getNoteContent(path: string): Promise<string | null> {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (file instanceof TFile) {
+            return await this.app.vault.read(file);
+        }
+        return null;
+    }
+
+    async updateNoteContent(path: string, content: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (file instanceof TFile) {
+            await this.app.vault.modify(file, content);
+        }
+    }
+
+    async getVaultSummary(): Promise<string> {
+        const data = await this.fetchVaultData();
+        
+        let summary = '# Сводка по хранилищу\n\n';
+        
+        if (data.projects.length > 0) {
+            summary += '## Проекты\n';
+            for (const p of data.projects) {
+                summary += `- ${p.name}: ${p.status}, приоритет=${p.priority || '-'}, ответственный=${p.responsible || '-'}, цель=${p.goal || '-'}\n`;
+            }
+            summary += '\n';
+        }
+        
+        if (data.tasks.length > 0) {
+            summary += '## Задачи\n';
+            for (const t of data.tasks) {
+                summary += `- ${t.name}: ${t.status}, приоритет=${t.priority}, дедлайн=${t.deadline || '-'}, ответственный=${t.responsible || '-'}\n`;
+            }
+            summary += '\n';
+        }
+        
+        if (data.incidents.length > 0) {
+            summary += '## Инциденты\n';
+            for (const i of data.incidents) {
+                summary += `- ${i.name}: ${i.status}, дата=${i.date}\n`;
+            }
+            summary += '\n';
+        }
+        
+        if (data.notes.length > 0) {
+            summary += '## Простые заметки\n';
+            for (const n of data.notes) {
+                summary += `- ${n.name}: теги=${n.tags.join(', ') || '-'}, автор=${n.author || '-'}\n`;
+            }
+            summary += '\n';
+        }
+        
+        return summary;
+    }
 }
