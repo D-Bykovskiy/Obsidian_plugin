@@ -312,6 +312,11 @@ export default class MonitoringPlugin extends Plugin {
             pathParts.pop();
             const relativePath = pathParts.join('/');
             
+            if (folderName === 'Архив' && filePath.startsWith('Архив/')) {
+                new Notice('Файл уже в архиве');
+                return;
+            }
+            
             const targetFolder = relativePath ? `${folderName}/${relativePath}` : folderName;
             
             const folderExists = this.app.vault.getAbstractFileByPath(targetFolder);

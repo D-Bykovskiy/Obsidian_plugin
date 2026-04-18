@@ -140,6 +140,15 @@ export class MonitoringDurationChild extends MarkdownRenderChild {
                     }
                 }).open();
             };
+            toolsRow.createEl('button', { cls: 'monitoring-glass-btn tool-btn', text: '📝 Заметка' }).onclick = () => {
+                new NewTaskModal(this.plugin.app, async (name) => {
+                    const newF = await this.plugin.templateManager.createSimpleNote(name);
+                    if (newF) {
+                        await this.plugin.templateManager.addChildNote(this.file, newF);
+                        await this.plugin.app.workspace.getLeaf(false).openFile(newF);
+                    }
+                }).open();
+            };
             toolsRow.createEl('button', { cls: 'monitoring-glass-btn tool-btn', text: '🔗 Ресурс' }).onclick = () => new ResourceModal(this.plugin.app, (l, d) => this.plugin.addResourceToNote(this.file, l, d)).open();
             toolsRow.createEl('button', { cls: 'monitoring-glass-btn tool-btn', text: '🏷️ Тег' }).onclick = () => new TagModal(this.plugin.app, (t) => this.plugin.addTagToNote(this.file, t)).open();
 

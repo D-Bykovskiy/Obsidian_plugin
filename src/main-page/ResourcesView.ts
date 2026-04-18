@@ -105,13 +105,20 @@ export class ResourcesView extends BaseView {
         } else {
             const vaultPath = (this.app.vault.adapter as any).basePath;
             if (!vaultPath) {
-                new Notice('Не удалось открыть проводник');
+                new Notice('Не удалось открыть');
                 return;
             }
             fullPath = `${vaultPath}\\${path.replace(/\//g, '\\')}`;
         }
         
-        window.open(`file://${fullPath.replace(/\\/g, '/')}`);
+        const { exec } = require('child_process');
+        const normalizedPath = fullPath.replace(/\//g, '\\');
+        exec(`powershell -Command "Start-Process '${normalizedPath.replace(/'/g, "''")}'"`, (err: any) => {
+            if (err) {
+                new Notice('Не удалось открыть');
+                console.error(err);
+            }
+        });
     }
 
     private showResourceContextMenu(e: MouseEvent, item: Resource, groupName: string): void {

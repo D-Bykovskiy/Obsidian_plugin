@@ -278,6 +278,30 @@ cssclasses: [hide-properties]
         await this.app.vault.modify(parentFile, content);
     }
 
+    async addChildNote(parentFile: TFile, noteFile: TFile): Promise<void> {
+        const sectionName = "## 📝 Подзаметки";
+        const listItem = `- [[${noteFile.basename}]]`;
+
+        let content = await this.app.vault.read(parentFile);
+        
+        if (content.includes(sectionName)) {
+            if (!content.includes(`[[${noteFile.basename}]]`)) {
+                content = content.replace(sectionName, `${sectionName}\n${listItem}`);
+            }
+        } else {
+            const subTaskHeader = "## 📋 Список подзадач";
+            const section = `\n${sectionName}\n${listItem}\n`;
+            
+            if (content.includes(subTaskHeader)) {
+                content = content.replace(subTaskHeader, `${section}${subTaskHeader}`);
+            } else {
+                content += section;
+            }
+        }
+
+        await this.app.vault.modify(parentFile, content);
+    }
+
     async updateSubtaskStatusIcon(taskFile: TFile): Promise<void> {
         const files = this.app.vault.getMarkdownFiles();
         const taskBasename = taskFile.basename;
