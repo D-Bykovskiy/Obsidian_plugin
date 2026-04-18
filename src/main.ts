@@ -41,25 +41,12 @@ export default class MonitoringPlugin extends Plugin {
         );
 
         // Ribbon icons
-        this.addRibbonIcon('mail', 'Импортировать почту', async () => {
-            await this.processEmails();
-        });
-
         this.addRibbonIcon('message-square', 'Корпоративный ИИ Чат', async () => {
             await this.activateChatView();
         });
 
         this.addRibbonIcon('brain', 'Главная панель проектов', async () => {
             await this.activateMainPageView();
-        });
-
-        // Commands
-        this.addCommand({
-            id: 'import-mail',
-            name: 'Обновить почту (Import Mail)',
-            callback: async () => {
-                await this.processEmails();
-            }
         });
 
         this.addCommand({
@@ -178,86 +165,6 @@ export default class MonitoringPlugin extends Plugin {
             await leaf.setViewState({ type: MAIN_PAGE_VIEW_TYPE, active: true });
         }
         if (leaf) workspace.revealLeaf(leaf);
-    }
-
-    async processEmails() {
-        new Notice('Запуск сканирования почты...');
-        try {
-            const allEmails = await this.outlookService.fetchEmails();
-            allEmails.reverse(); 
-            let newEmails = allEmails.filter(e => !this.settings.scannedEmailIds.includes(e.entryId));
-            if (newEmails.length === 0) newEmails = allEmails.slice(Math.max(allEmails.length - 10, 0));
-            if (newEmails.length === 0) { new Notice('Папка пуста.'); return; }
-
-            const files = this.app.vault.getMarkdownFiles();
-            const projectFiles: {file: TFile, tracked_emails: string[]}[] = [];
-            
-            for (const file of files) {
-                const cache = this.app.metadataCache.getFileCache(file);
-                const type = cache?.frontmatter?.['type'];
-                if (type === 'project') {
-                    const tracked = cache?.frontmatter?.['tracked_emails'] || [];
-                    if (tracked.length > 0) {
-                        projectFiles.push({
-                            file,
-                            tracked_emails: tracked.map((t: string) => t.toLowerCase())
-                        });
-                    }
-                }
-            }
-
-            let processedCount = 0;
-            for (const email of newEmails) {
-                const topicLower = email.conversationTopic.toLowerCase();
-                const matchedProjects = projectFiles.filter(p => 
-                    p.tracked_emails.some(te => topicLower.includes(te))
-                );
-
-                if (matchedProjects.length > 0) {
-                    for (const project of matchedProjects) {
-                        await this.addEmailToProject(project.file, email);
-                    }
-                } else {
-                    const existingNote = await this.templateManager.getIncidentNoteByTopic(email.conversationTopic);
-                    if (existingNote) {
-                        const content = await this.templateManager.readNoteContent(existingNote);
-                        const match = content.match(/## Текущее саммари инцидента\n([\s\S]*?)\n---/m);
-                        const oldSummary = match ? match[1].trim() : 'Логов нет.';
-                        const combinedSummary = await this.llmService.updateIncidentSummary(oldSummary, email.bodyPreview);
-                        await this.templateManager.updateIncidentNote(existingNote, email, combinedSummary);
-                    } else {
-                        const summary = await this.llmService.summarizeIncident(email.bodyPreview);
-                        await this.templateManager.createIncidentNote(email, summary);
-                    }
-                }
-                processedCount++;
-                if (!this.settings.scannedEmailIds.includes(email.entryId)) this.settings.scannedEmailIds.push(email.entryId);
-            }
-            await this.saveSettings();
-            new Notice(processedCount === 0 ? 'Нет писем по отслеживаемым темам.' : `Готово! Обработано писем: ${processedCount}`);
-        } catch (error) {
-            console.error(error);
-            new Notice('Ошибка при импорте: ' + error.message);
-        }
-    }
-
-    private async addEmailToProject(projectFile: TFile, email: any): Promise<void> {
-        const vault = this.app.vault;
-        const content = await vault.read(projectFile);
-        
-        const emailEntry = `- [${email.conversationTopic}](${email.subject}) — ${email.sender} (${new Date(email.receivedDateTime).toLocaleDateString('ru-RU')})`;
-        
-        let newContent = content;
-        if (content.includes('## 📬 Письма')) {
-            const emailSectionMatch = content.match(/(## 📬 Письма\n)([\s\S]*)/);
-            if (emailSectionMatch) {
-                newContent = emailSectionMatch[1] + emailEntry + '\n' + emailSectionMatch[2];
-            }
-        } else {
-            newContent = content + '\n## 📬 Письма\n' + emailEntry + '\n';
-        }
-        
-        await vault.modify(projectFile, newContent);
     }
 
     onunload() {}
